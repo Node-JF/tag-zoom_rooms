@@ -64,9 +64,9 @@ end
 
 -- Defines the Controls used within the plugin
 function GetControls(props)
-  local ctrls = {}
+  local ctls = {}
   --[[ #include "src\controls.lua" ]]
-  return ctrls
+  return ctls
 end
 
 --Layout of controls and graphics for the plugin UI to display
