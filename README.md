@@ -44,7 +44,7 @@ The color of the selected items when in 'HTML5 Compatible' mode.
 ## Controls
 
 ### Config Page
-![Config Page](./Screenshots/config.jpg)
+![Config Page](./screenshots/config.jpg)
 
 #### IP Address
 
@@ -103,7 +103,7 @@ Sets the currently selected camera active.
 Mirrors the camera input.
 
 ### Room Page
-![Room Page](./Screenshots/room.JPG)
+![Room Page](./screenshots/room.JPG)
 
 #### App Version
 
@@ -166,7 +166,7 @@ The ***Plugin*** automatically answers an incoming call.
 If the Zoom Room is in presentation mode, automatically start sharing the HDMI source.
 
 ### Admin Page
-![Admin Page](./Screenshots/admin.JPG)
+![Admin Page](./screenshots/admin.JPG)
 
 #### Number of Zoom Rooms
 
@@ -229,7 +229,7 @@ A list of upcoming bookings.
 Join the selected booking.
 
 ### Call Page
-![Call Page - 1](./Screenshots/call%201.JPG)
+![Call Page - 1](./screenshots/call%201.JPG)
 
 #### Call Status
 
@@ -335,7 +335,7 @@ Enables 'Call Lock'
 
 Disables 'Call Lock'
 
-![Call Page - 2](./Screenshots/call%202.JPG)
+![Call Page - 2](./screenshots/call%202.JPG)
 
 #### Mute My Microphone
 
@@ -411,7 +411,7 @@ Show the available views that can be set.
 
 Set the selected view.
 
-![Call Page - 3](./Screenshots/call%203.JPG)
+![Call Page - 3](./screenshots/call%203.JPG)
 
 #### Participants List
 
@@ -525,7 +525,7 @@ Tilt controls of the selected camera.
 
 Zoom controls of the selected camera.
 
-![Call Page - 4](./Screenshots/call%204.JPG)
+![Call Page - 4](./screenshots/call%204.JPG)
 
 #### Sharing Status
 
