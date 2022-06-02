@@ -1,6 +1,23 @@
-table.insert(props, {
-  Name = "Debug Print",
-  Type = "enum",
-  Choices = {"None", "Tx/Rx", "Tx", "Rx", "Function Calls", "All"},
-  Value = "None"
-})
+props = {
+  {
+      Name = 'List Box Style',
+      Type = "enum",
+      Choices = {
+        "Standard",
+        "HTML5 Compatible"
+      },
+      Value = "Standard",
+  },
+  {
+    Name = 'Highlight Color',
+    Type = "enum",
+    Choices = {
+      "Green",
+      "Red",
+      "Blue",
+      "Violet",
+      "Lime"
+    },
+    Value = "Green",
+  },
+}

@@ -1,8 +1,9 @@
 PluginInfo = {
-  Name = "Base Plugin",
-  Version = "0.0",
-  BuildVersion = "20.0.0.0",
-  Id = "667567fa-1ad0-4c9c-ae16-db1b7152f525",
-  Author = "Your_Company",
-  Description = "A very basic plugin"  
+  Name = "TAG~Zoom~Zoom Rooms CLI",
+  Version = "1.5",
+  BuildVersion = "1.5.0.2",
+  Id = "c446ef61-0b8d-41bb-b354-d24e35165a2d",
+  Description = "Zoom Rooms JSON CLI with support for massive phonebooks, contacts searching & filtering, contact presence updates, HTML5 compatible listboxes, host ending call flag options, custom plugin settings",
+  Author = "Jason Foord",
+  ShowDebug = true
 }

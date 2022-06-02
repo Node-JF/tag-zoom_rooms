@@ -13,7 +13,7 @@ if test "$1" != "ver_none"
 then
 
   # STEP 1 Increment BuildVersion Number
-  oldnum="$( grep 'BuildVersion' info.lua | cut -d $'\"' -f2 | cut -d $'\"' -f1 )"
+  oldnum="$( grep 'BuildVersion' src/info.lua | cut -d $'\"' -f2 | cut -d $'\"' -f1 )"
   #echo $oldnum
   newnum="$oldnum"
 
@@ -66,13 +66,13 @@ then
   fi
 
   #echo $newnum
-  sed -i -E "s/$oldnum/$newnum/" info.lua
+  sed -i -E "s/$oldnum/$newnum/" src/info.lua
 else
   echo "not updating buildversion"
 fi
 
 # STEP 2 Create new GUID if the plugin doesn't already have one
-oldid="$( grep 'Id' info.lua | cut -d $'\"' -f2 | cut -d $'\"' -f1 )"
+oldid="$( grep 'Id' src/info.lua | cut -d $'\"' -f2 | cut -d $'\"' -f1 )"
 #echo $oldid
 
 if test "$oldid" = "<guid>"
@@ -80,8 +80,8 @@ then
   echo "generating guid for plugin"
   newid="$( uuidgen )"
   #echo $newid
-  sed -i -E "s/$oldid/$newid/" info.lua
+  sed -i -E "s/$oldid/$newid/" src/info.lua
 fi
 
 # STEP 3 Fix up line endings
-unix2dos -q info.lua
+unix2dos -q src/info.lua

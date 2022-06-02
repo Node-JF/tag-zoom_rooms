@@ -13,5 +13,4 @@ if not exist "%userprofile%\Documents\QSC\Q-Sys Designer\Plugins\%2" mkdir "%use
 ::      QSD was then throwing an access error while the file was being written, so I added code in C# to catch access denied errors,
 ::      in favour of waiting for the next changed notification that allowed the file to be read (i.e. file copying finished)
 COPY /Y "%1\%2.qplug" "%userprofile%\OneDrive\Documents\QSC\Q-Sys Designer\Plugins\%2.qplug"
-
-if exist "%userprofile%\OneDrive - Technical Audio Group\Cloned Repositories\%~3" COPY /Y "%1\%2.qplug" "%userprofile%\OneDrive - Technical Audio Group\Cloned Repositories\%~3\%2.qplug"
+COPY /Y "%1\%2.qplug" "%userprofile%\OneDrive - Technical Audio Group\Q-SYS\TAG Plugins\%2.qplug"

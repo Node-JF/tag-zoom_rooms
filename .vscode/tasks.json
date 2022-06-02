@@ -12,7 +12,7 @@
             },
             "command": "echo Update QSD Plugin",
             "windows": {
-                "command": ".\\plugincompile\\copy_plugin.cmd ${workspaceFolder} ${workspaceFolderBasename} \"${input:repo}\"",
+                "command": ".\\plugincompile\\copy_plugin.cmd ${workspaceFolder} ${workspaceFolderBasename}",
                 "options": {
                     "shell": {
                         "executable": "cmd.exe",
