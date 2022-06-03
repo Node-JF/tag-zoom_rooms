@@ -2,7 +2,7 @@
 PluginInfo = {
   Name = "TAG~Zoom~Zoom Rooms CLI",
   Version = "1.5",
-  BuildVersion = "1.5.0.6",
+  BuildVersion = "1.5.0.7",
   Id = "c446ef61-0b8d-41bb-b354-d24e35165a2d",
   Description = "Zoom Rooms JSON CLI with support for massive phonebooks, contacts searching & filtering, contact presence updates, HTML5 compatible listboxes, host ending call flag options, custom plugin settings",
   Author = "Jason Foord",
@@ -1556,12 +1556,6 @@ function GetPages(props)
   return pages
 end
 
--- Optional function to define model if plugin supports more than one model
-function GetModel(props)
-  local model = {}
- return model
-end
-
 -- Define User configurable Properties of the plugin
 function GetProperties()
   local props = {}
@@ -1591,12 +1585,6 @@ function GetProperties()
   return props
 end
 
--- Optional function to define pins on the plugin that are not connected to a Control
-function GetPins(props)
-  local pins = {}
-  return pins
-end
-
 -- Optional function to update available properties when properties are altered by the user
 function RectifyProperties(props)
   props["Highlight Color"].IsHidden = props["List Box Style"].Value == "Standard"
@@ -1607,12 +1595,6 @@ end
 function GetComponents(props)
   local components = {}
   return components
-end
-
--- Optional function to define wiring of components used within the plugin
-function GetWiring(props)
-  local wiring = {}
-  return wiring
 end
 
 -- Defines the Controls used within the plugin
