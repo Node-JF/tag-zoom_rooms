@@ -39,7 +39,6 @@ for i, grouping in ipairs(Master_Object[page_index].Groupings) do
     table.insert(graphics, {
         Type = "Label",
         Text = Master_Object[page_index].Groupings[i].Name,
-        Size = 11,
         Color = {255, 255, 255},
         Fill = colors.black,
         StrokeWidth = 0,
