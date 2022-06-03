@@ -735,7 +735,6 @@ Master_Object = {{
             UserPin = true,
             Position = (width - 15) - Sizes.Button[1] - Sizes.LED[1],
             Size = Sizes.LED,
-            Size = Sizes.LED,
             GridPos = 2
         }, {
             Name = "Closed Caption Visible",
