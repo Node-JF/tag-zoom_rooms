@@ -1,8 +1,8 @@
 -- Information block for the plugin
 PluginInfo = {
   Name = "TAG~Zoom~Zoom Rooms CLI",
-  Version = "1.5",
-  BuildVersion = "1.5.0.7",
+  Version = "1.6",
+  BuildVersion = "1.6.0.1",
   Id = "c446ef61-0b8d-41bb-b354-d24e35165a2d",
   Description = "Zoom Rooms JSON CLI with support for massive phonebooks, contacts searching & filtering, contact presence updates, HTML5 compatible listboxes, host ending call flag options, custom plugin settings",
   Author = "Jason Foord",
@@ -1471,7 +1471,7 @@ Master_Object = {{
 
     }, {
         ["Name"] = "Zoom Events",
-        ["Depth"] = 5,
+        ["Depth"] = 6,
         ["Controls"] = {{
             Name = "Sharing Event Trigger",
             PrettyName = "Zoom Events~Sharing Event Trigger",
@@ -1532,6 +1532,16 @@ Master_Object = {{
             UserPin = true,
             Size = Sizes.Button,
             GridPos = 5
+        }, {
+            Name = "Auto Answered Trigger",
+            PrettyName = "Zoom Events~Auto Answered Trigger",
+            Label = "Auto Answered Trigger",
+            ControlType = "Button",
+            ButtonType = "Trigger",
+            PinStyle = "Output",
+            UserPin = true,
+            Size = Sizes.Button,
+            GridPos = 6
         }}
     }}
 }}
@@ -2052,7 +2062,7 @@ if Controls then
         canHangup = false
         Timer.CallAfter(function() canHangup = true; end, 10)
         print("Bypassing 'Force Hangup' for [10] Seconds")
-        Controls["Call Accept"]:Trigger()
+        Controls["Auto Answered Trigger"]:Trigger()
         CallAccept()
         print("Auto Answering the Incoming Call.")
       end

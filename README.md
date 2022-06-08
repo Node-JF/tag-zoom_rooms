@@ -660,3 +660,7 @@ Triggers when the "Call Disconnected' event is received.
 #### Sharing Disabled Trigger
 
 Triggers when an invalid screen sharing event occurs.
+
+#### Auto Answered Trigger
+
+Triggers when an the plugin auto answers the incoming call.

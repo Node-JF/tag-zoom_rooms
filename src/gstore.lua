@@ -1460,7 +1460,7 @@ Master_Object = {{
 
     }, {
         ["Name"] = "Zoom Events",
-        ["Depth"] = 5,
+        ["Depth"] = 6,
         ["Controls"] = {{
             Name = "Sharing Event Trigger",
             PrettyName = "Zoom Events~Sharing Event Trigger",
@@ -1521,6 +1521,16 @@ Master_Object = {{
             UserPin = true,
             Size = Sizes.Button,
             GridPos = 5
+        }, {
+            Name = "Auto Answered Trigger",
+            PrettyName = "Zoom Events~Auto Answered Trigger",
+            Label = "Auto Answered Trigger",
+            ControlType = "Button",
+            ButtonType = "Trigger",
+            PinStyle = "Output",
+            UserPin = true,
+            Size = Sizes.Button,
+            GridPos = 6
         }}
     }}
 }}

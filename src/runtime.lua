@@ -320,7 +320,7 @@ Zoom_Responses = {
       canHangup = false
       Timer.CallAfter(function() canHangup = true; end, 10)
       print("Bypassing 'Force Hangup' for [10] Seconds")
-      Controls["Call Accept"]:Trigger()
+      Controls["Auto Answered Trigger"]:Trigger()
       CallAccept()
       print("Auto Answering the Incoming Call.")
     end
