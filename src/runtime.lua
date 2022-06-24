@@ -91,6 +91,13 @@ In_Call_LEDs = {
   --"Participant is Video Muted"
 }
 
+GStore = {
+  joinMeeting = {
+    command = "",
+    joinOnNextDisconnect = false
+  }
+}
+
 Zoom_Responses = {
 
   Audio = function(Audio)
@@ -135,7 +142,7 @@ Zoom_Responses = {
   
   BookingsListResult = function(BookingsListResult)
       
-    print(string.format("%d Bookings Found", #BookingsListResult))
+    Debug(string.format("%d Bookings Found", #BookingsListResult), 'basic')
     
     booking_list = {}
     
@@ -155,7 +162,7 @@ Zoom_Responses = {
   
   BookingsUpdated = function(BookingsUpdated)
       
-    print("Fetching Bookings List...")
+    Debug("Fetching Bookings List...", 'basic')
     
     Enqueue("zCommand Bookings List")
     
@@ -195,7 +202,10 @@ Zoom_Responses = {
         participantsReceived = false
         
       elseif (Call.Status == "IN_MEETING") then
-        
+        if (inCall == false) then
+          Controls["Call Connect Trigger"]:Trigger()
+          Debug("Call Connected - Firing 'Call Connected' Trigger", 'basic')
+        end
         inCall = true
         Enqueue("zCommand Call Info", 1)
         if (not participantsReceived) then Enqueue("zCommand Call ListParticipants") end
@@ -242,17 +252,17 @@ Zoom_Responses = {
     
   end,
   
-  CallConnect = function(CallConnect)
-    if CallConnect.success == "on" then
-      Controls["Call Connect Trigger"]:Trigger()
-      print("Call Connected - Firing 'Call Connected' Trigger")
-    end
+  CallConnect = function(CallConnect) -- is only when starting PMI, need alternate events for join meeting, also update terminology and readme
+    -- if CallConnect.success == "on" then
+    --   Controls["Call Connect Trigger"]:Trigger()
+    --   Debug("Call Connected - Firing 'Call Connected' Trigger", 'basic')
+    -- end
   end,
 
   CallConnectError = function(CallConnectError)
     if CallConnectError.error_message == "Participant screen sharing was disabled" then
       Controls["Screen Sharing Disabled"]:Trigger()
-      print("Unable to Share Screen - Firing 'Sharing Disabled' Trigger")
+      Debug("Unable to Share Screen - Firing 'Sharing Disabled' Trigger", 'basic')
     end
   end,
   
@@ -262,7 +272,7 @@ Zoom_Responses = {
       SetLED("In Call", false)
       SetLED("In Call Presentation", false)
       Controls["Call Disconnect Trigger"]:Trigger()
-      print("Call Disconnected - Firing 'Call Disconnected' Trigger")
+      Debug("Call Disconnected - Firing 'Call Disconnected' Trigger", 'basic')
     end
   end,
   
@@ -270,10 +280,10 @@ Zoom_Responses = {
 
     if (Controls['Call Ended by Host Mode'].String == "Always Trigger") then
       Controls["Call Ended by Host Trigger"]:Trigger()
-      print("Host Ended Call - Firing 'Call Ended by Host' Trigger")
+      Debug("Host Ended Call - Firing 'Call Ended by Host' Trigger", 'basic')
     elseif (Controls['Call Ended by Host Mode'].String == "Auto-Answered Calls Only") and callWasAutoAnswered then
       Controls["Call Ended by Host Trigger"]:Trigger()
-      print("Host Ended Call (Auto-Answered) - Firing 'Call Ended by Host' Trigger")
+      Debug("Host Ended Call (Auto-Answered) - Firing 'Call Ended by Host' Trigger", 'basic')
     end
     
   end,
@@ -319,27 +329,33 @@ Zoom_Responses = {
       callWasAutoAnswered = true
       canHangup = false
       Timer.CallAfter(function() canHangup = true; end, 10)
-      print("Bypassing 'Force Hangup' for [10] Seconds")
+      Debug("Bypassing 'Force Hangup' for [10] Seconds", 'basic')
       Controls["Auto Answered Trigger"]:Trigger()
       CallAccept()
-      print("Auto Answering the Incoming Call.")
+      Debug("Auto Answering the Incoming Call.", 'basic')
     end
     
   end,
   
   InfoResult = function(InfoResult)
 
-    local id = InfoResult.meeting_id
-    
-    Controls["Meeting ID"].String = string.format("%s %s %s", id:sub(1, 3), id:sub(4, 7), id:sub(8))
-    
-    Controls["Meeting Password"].String = InfoResult.meeting_password
+    local meeting_id = InfoResult.meeting_id
+    meeting_id = string.format("%s %s %s", meeting_id:sub(1, 3), meeting_id:sub(4, 7), meeting_id:sub(8))
+    Controls["Meeting ID"].String = meeting_id
 
-    SetLED("In Call Presentation", (InfoResult.meeting_type == "SHARING_LAPTOP"))
-    SetLED("In Call", (InfoResult.meeting_type == "SHARING_LAPTOP") or (InfoResult.meeting_type == "NORMAL"))
-    Controls['Call Status'].String = (InfoResult.meeting_type == "SHARING_LAPTOP") and "In Presentation Mode" or (InfoResult.meeting_type == "NORMAL") and "In Meeting"
-    SetLED("In Waiting Room", (InfoResult.is_waiting_room))
-    print(string.format("Call Status: Is Waiting Room [%s], Meeting Type [%s]", InfoResult.is_waiting_room, InfoResult.meeting_type))
+    local meeting_password = InfoResult.meeting_password
+    Controls["Meeting Password"].String = meeting_password
+
+    local meeting_type = InfoResult.meeting_type
+    local is_waiting_room = InfoResult.is_waiting_room
+
+    SetLED("In Call Presentation", ((not is_waiting_room) and (meeting_type == "SHARING_LAPTOP")))
+    SetLED("In Call", ((not is_waiting_room) and (meeting_type == "SHARING_LAPTOP") or (meeting_type == "NORMAL")))
+    SetLED("In Waiting Room", is_waiting_room)
+
+    Controls['Call Status'].String = (is_waiting_room) and "In Waiting Room" or (meeting_type == "SHARING_LAPTOP") and "In Presentation Mode" or (meeting_type == "NORMAL") and "In Meeting"
+    
+    Debug(string.format("Call Status: Is Waiting Room [%s], Meeting Type [%s]", is_waiting_room, meeting_type), 'basic')
       
   end,
   
@@ -380,7 +396,7 @@ Zoom_Responses = {
         
     if ListParticipantsResult.event == "ZRCUserChangedEventLeftMeeting" then return RemoveParticipant(ListParticipantsResult.user_id) end
     
-    if (updateParticipantBypass) then return print("Temporarily Bypassing Participant Updates.") end
+    if (updateParticipantBypass) then return Debug("Temporarily Bypassing Participant Updates.", 'basic') end
 
     if ListParticipantsResult.user_id then 
       
@@ -430,8 +446,6 @@ Zoom_Responses = {
   end,
   
   PhonebookBasicInfoChange = function(PhonebookBasicInfoChange)
-        
-    print(rapidjson.encode(PhonebookBasicInfoChange, {pretty = true}))
     
     Controls['Number of Zoom Rooms'].String = PhonebookBasicInfoChange.numberOfZoomRoom
     Controls['Number of Normal Contacts'].String = PhonebookBasicInfoChange.numberOfNormalContact
@@ -479,7 +493,7 @@ Zoom_Responses = {
     
     if Phonebook['Added Contact'] then
     
-      print(string.format("Adding Contact '%s'", Phonebook['Added Contact'].screenName))
+      Debug(string.format("Adding Contact '%s'", Phonebook['Added Contact'].screenName), 'basic')
     
     elseif Phonebook['Updated Contact'] then
     
@@ -500,7 +514,7 @@ Zoom_Responses = {
     
     Controls[string.format("Pin Status %d", screen)].String = participant
     
-    print(string.format("Screen: %d, Pinned Participant: %s", screen, participant))
+    Debug(string.format("Screen: %d, Pinned Participant: %s", screen, participant), 'basic')
       
   end,
   
@@ -537,7 +551,7 @@ Zoom_Responses = {
     if SharingState.state then
       Controls["Sharing Status"].String = SharingState.state
       if SharingState.state ~= "None" then
-        print("Sharing Event Received - Firing 'Sharing Event' Trigger")
+        Debug("Sharing Event Received - Firing 'Sharing Event' Trigger", 'basic')
         Controls["Sharing Event Trigger"]:Trigger()
       end
     end
@@ -548,7 +562,7 @@ Zoom_Responses = {
   
   SpotlightStatusNotification = function(SpotlightStatusNotification)
   
-    print(string.format("Spotlight Present: %s, User ID: %s", SpotlightStatusNotification.present, SpotlightStatusNotification.user_id))
+    Debug(string.format("Spotlight Present: %s, User ID: %s", SpotlightStatusNotification.present, SpotlightStatusNotification.user_id), 'basic')
     
     SetLED("Spotlight Active", SpotlightStatusNotification.present)
     
@@ -562,7 +576,7 @@ Zoom_Responses = {
   
   SystemUnit = function(SystemUnit)
     
-    --print(rapidjson.encode(SystemUnit, {pretty = true}))
+    Debug(rapidjson.encode(SystemUnit, {pretty = true}), 'basic')
 
     if (not contactsImported) then return end
     
@@ -682,9 +696,9 @@ function Connect()
   
   Controls["IP Address"].Color = ip and 'Green' or 'Red'
   
-  if not ip then return print("User.Error: IP address invalid") end
+  if not ip then return Debug("User.Error: IP address invalid", 'basic') end
   
-  print("SSH.Info: Connecting...")
+  Debug("SSH.Info: Connecting...", 'basic')
   
   zoomRoom:Connect(ip, 2244, "zoom", Controls.Password.String)
 end
@@ -694,9 +708,18 @@ function SetStatus(code, message)
   Controls["Status"].Value = code
   Controls["Status"].String = string.format("%s: %s", message, ip and ip or "None")
   
-  if (code ~= 0) and (message ~= "") then return print(string.format("User.Info: Settings Status with Code: '%d', Message: '%s'", code, message)) end
+  if (code ~= 0) and (message ~= "") then return Debug(string.format("User.Info: Settings Status with Code: '%d', Message: '%s'", code, message), 'basic') end
   
 end; SetStatus(3, "")
+
+function Debug(message, mode)
+  mode = mode or 'basic'
+  if mode == 'basic' then
+    print(message)
+  elseif mode == 'verbose' then
+    if Properties["Debug Mode"].Value == 'Verbose' then print(message) end
+  end
+end
 
 -- --[[function EventLog(log, severity)
 --   Controls["Log Entry"].String = string.format("%s: %s", Controls["EventLog Prefix"].String, log)
@@ -729,7 +752,7 @@ function ResetControls()
   
   -- reset text indicators
   for i, control_name in ipairs(Text_Indicators) do
-    if not Controls[control_name] then print(control_name) end
+    if not Controls[control_name] then Debug(string.format("!! No Control Found for  Name [%s]", control_name), 'verbose') end
     Controls[control_name].String = ""
   end
   
@@ -760,7 +783,6 @@ function DisableParticipantControls(bool)
 end
 
 function SetLED(name, bool)
-  --print(string.format("User.Info: Setting LED '%s' as '%s'", name, tostring(bool)))
   Controls[name].Boolean = bool
   Controls[name].Color = (bool and "Lime" or "DarkRed")
 end
@@ -771,7 +793,7 @@ function Poll()
   
   if (Controls["Force Hangup"].Boolean) and (Controls['In Call'].Boolean) and (canHangup) and (not Controls["Incoming Call"].Boolean) then MeetingEnd() end
   
-  if (not phonebookReceived) and (not pendingFirstPhonebookResult) then print("Fetching Phonebook..."); ResetPhonebookList() end
+  if (not phonebookReceived) and (not pendingFirstPhonebookResult) then Debug("Fetching Phonebook...", 'basic'); ResetPhonebookList() end
   if (not cameraConfigurationReceived) then Enqueue("zStatus Video Camera Line") end
   if (not audioInputConfigurationReceived) then Enqueue("zStatus Audio Input Line") end
   if (not audioOutputConfigurationReceived) then Enqueue("zStatus Audio Output Line") end
@@ -805,10 +827,19 @@ function Poll()
     Enqueue("zStatus CameraShare")
     
   else
-  
-    if (not Controls["Force Hangup"].Boolean) and Controls["Force Local Presentation"].Boolean then
     
-      print("Zoom.Info: Forcing Local Presentation")
+    if GStore.joinMeeting.joinOnNextDisconnect == true then
+      Debug("Zoom.Info: Waiting for Meeting Disconnect Before Joining New Meeting...", 'basic')
+      if Controls["Call Status"].String == "Not in Meeting" then
+        Debug("Zoom.Info: Sending Join Command", 'basic')
+        Enqueue(GStore.joinMeeting.command, 1)
+        GStore.joinMeeting.joinOnNextDisconnect = false
+      else
+        Debug("Zoom.Info: Still in Meeting - Cannot Join", 'basic')
+      end
+    elseif (not Controls["Force Hangup"].Boolean) and Controls["Force Local Presentation"].Boolean then
+    
+      Debug("Zoom.Info: Forcing Local Presentation", 'basic')
     
       StartLocalPresentation()
     end
@@ -827,7 +858,7 @@ end
 function Enqueue(command, position)
 
   -- check if socket is connected
-  if not zoomRoom.IsConnected then print("Connecting..."); Connect() end
+  if not zoomRoom.IsConnected then Debug("!! Enqueue Error [Socket not Connected]", 'basic'); Connect() end
   
   -- start the queue timer again if the queue was empty prior to this enqueue
   if not commandQueue[1] then queue_timer:Start(0) end
@@ -844,7 +875,7 @@ function Dequeue()
   
   queue_timer:Stop()
   
-  if not commandQueue[1] then return print("User.Info: No Commands in Queue") end
+  if not commandQueue[1] then return Debug("User.Info: No Commands in Queue", 'basic') end
   
   -- write the command to socket
   Send(commandQueue[1])
@@ -857,9 +888,7 @@ function Dequeue()
 end
 
 function Send(s)
-
-  if not zoomRoom.IsConnected then return print("SSH.Warning: Socket is Not Connected") end
-  --print(s)
+  if not zoomRoom.IsConnected then return Debug("SSH.Warning: Socket is Not Connected", 'basic') end
   zoomRoom:Write(s.."\r")
 end
 
@@ -955,7 +984,7 @@ end
 
 function BuildPhonebookChoices(tbl, is_clearing)
   
-  print("Contacts.Info: Building Phonebook Choices...")
+  Debug("Contacts.Info: Building Phonebook Choices...", 'basic')
   
   choices['phonebook'] = {}
   
@@ -977,11 +1006,11 @@ function BuildPhonebookChoices(tbl, is_clearing)
   
   local function CompilePhonebook()
   
-    print(string.format("Contacts.Info: %d/%d Contacts Meet the Search & Filter Criteria", #choices.phonebook, checked_contacts))
+    Debug(string.format("Contacts.Info: %d/%d Contacts Meet the Search & Filter Criteria", #choices.phonebook, checked_contacts), 'basic')
     
     if #choices.phonebook > max_contacts then
     
-      print("Contacts.Info: Cannot Compile List - Too Large")
+      Debug("Contacts.Info: Cannot Compile List - Too Large", 'basic')
       
       Controls.Phonebook.Choices = {
         {Text = "Too Many Results;", Color = "Orange"},
@@ -990,12 +1019,12 @@ function BuildPhonebookChoices(tbl, is_clearing)
       
     else
       
-      print("Contacts.Info: Compiling Contacts List Box")
+      Debug("Contacts.Info: Compiling Contacts List Box", 'basic')
       
       -- subscribe to these contacts
       for i, contact in ipairs(choices.phonebook) do
         local position = phonebook.positions[contact.jid]
-        print(string.format("Subscribing to Contact [%d] '%s'", position, phonebook.contacts[position].name))
+        Debug(string.format("Subscribing to Contact [%d] '%s'", position, phonebook.contacts[position].name), 'basic')
         Enqueue(string.format("zcommand phonebook subscribe offset: %d limit: 1", position))
       end
       
@@ -1045,17 +1074,17 @@ function BuildPhonebookChoices(tbl, is_clearing)
     t:Stop()
     
     -- phonebook can be off by (+10) contacts - sometimes the phonebook doesn't update the number of contacts quickly, so this serves as a buffer so the phonebook isn't stuck in an import look untiles it upades.
-    if (#phonebook.contacts > tonumber(Controls['Total Contacts'].String) + 10) then t:Stop(); print("[Error Importing Contacts (Double Import Somewhere) - Retrying]"); ResetPhonebookList() return end
+    if (#phonebook.contacts > tonumber(Controls['Total Contacts'].String) + 10) then t:Stop(); Debug("[Error Importing Contacts (Double Import Somewhere) - Retrying]", 'basic'); ResetPhonebookList() return end
 
     local count = 0
     
     for i = start, finish do
       
       -- if we run out of phonebook entries, break the loop
-      if not tbl[i] then print("Contacts.Info: Ran out of Phonebook Entries - Breaking Scan Loop") break end
+      if not tbl[i] then Debug("Contacts.Info: Ran out of Phonebook Entries - Breaking Scan Loop", 'basic') break end
       
       -- if we hit the chunk limit, return here and run the chunk timer again. if we don't hit the chunk limit, then we must be finished and the code below will run.
-      if count >= chunk then t:Start(delay); return print(string.format("Contacts.Info: Chunk Completed (Chunk Size = %d)", count)) end
+      if count >= chunk then t:Start(delay); return Debug(string.format("Contacts.Info: Chunk Completed (Chunk Size = %d)", count), 'basic') end
       
       if (is_clearing == true) then tbl[i].selected = false end
       
@@ -1080,14 +1109,14 @@ function BuildPhonebookChoices(tbl, is_clearing)
     
     count = nil
     
-    print("Contacts.Info: Scan Completed - Checked all Contacts")
+    Debug("Contacts.Info: Scan Completed - Checked all Contacts", 'basic')
     
     CompilePhonebook(choices.phonebook)
   end
   
   ----- Running Code Starts Here -----
   
-  print("Contacts.Info: Scanning Contacts...")
+  Debug("Contacts.Info: Scanning Contacts...", 'basic')
   
   chunkTimer:Start(delay)
 end
@@ -1117,7 +1146,7 @@ function GetCameraPtzID()
   
   -- request control of the selected camera
   if not participant.camera.am_i_controlling and not participant.is_myself then
-    print(string.format("Not Controlling %s's Camera - Requesting Control", participant.Text))
+    Debug(string.format("Not Controlling %s's Camera - Requesting Control", participant.Text), 'basic')
     RequestControl()
   end
   
@@ -1127,9 +1156,9 @@ function SetCameraID()
 
   local camera = rapidjson.decode(Controls["Camera Lines"].String)
   
-  if (not camera) then return print("No Camera Selected.") end
+  if (not camera) then return Debug("No Camera Selected.", 'basic') end
 
-  print(string.format("Setting Camera Input to: %s", camera.Text))
+  Debug(string.format("Setting Camera Input to: %s", camera.Text), 'basic')
   Enqueue(string.format("zConfiguration Video Camera selectedId: %s", camera.id))
 end
 
@@ -1137,9 +1166,9 @@ function SetAudioInputID()
 
   local audio_input = rapidjson.decode(Controls["Audio Input Lines"].String)
   
-  if (not audio_input) then return print("No Audio Input Selected.") end
+  if (not audio_input) then return Debug("No Audio Input Selected.", 'basic') end
 
-  print(string.format("Setting Audio Input to: %s", audio_input.Text))
+  Debug(string.format("Setting Audio Input to: %s", audio_input.Text), 'basic')
   Enqueue(string.format("zConfiguration Audio Input selectedId: %s", audio_input.id))
 end
 
@@ -1147,9 +1176,9 @@ function SetAudioOutputID()
 
   local audio_output = rapidjson.decode(Controls["Audio Output Lines"].String)
   
-  if (not audio_output) then return print("No Audio Output Selected.") end
+  if (not audio_output) then return Debug("No Audio Output Selected.", 'basic') end
 
-  print(string.format("Setting Audio Output to: %s", audio_output.Text))
+  Debug(string.format("Setting Audio Output to: %s", audio_output.Text), 'basic')
   Enqueue(string.format("zConfiguration Audio Output selectedId: %s", audio_output.id))
 end
 
@@ -1226,7 +1255,7 @@ phonebookTimer = Timer.New()
 
 phonebookTimer.EventHandler = function()
   
-  print("Contacts.Info: Checking for More Contacts...")
+  Debug("Contacts.Info: Checking for More Contacts...", 'basic')
   
   Enqueue(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit), 1) 
 
@@ -1258,11 +1287,11 @@ function UpdatePhonebook(this)
   
   for i, contact in ipairs(this.Contacts) do InsertContact(contact) end
   
-  print(string.format("Contacts.Info: Added %d Contacts out of %s (Limit)", #this.Contacts, limit))
+  Debug(string.format("Contacts.Info: Added %d Contacts out of %s (Limit)", #this.Contacts, limit), 'basic')
     
   if #this.Contacts >= limit then
   
-    print("Contacts.Info: Checking for More Contacts...")
+    Debug("Contacts.Info: Checking for More Contacts...", 'basic')
     
     offset = offset + limit
     
@@ -1272,7 +1301,7 @@ function UpdatePhonebook(this)
     
   else
   
-    print(string.format("Contacts.Info: %d Total Contacts Imported from Zoom", #phonebook.contacts))
+    Debug(string.format("Contacts.Info: %d Total Contacts Imported from Zoom", #phonebook.contacts), 'basic')
     
     SetStatus(0, "Phonebook Received")
     
@@ -1308,7 +1337,7 @@ PresenceUpdateTimers[1].EventHandler = function()
   
   if (not (#presence_updates > 0)) then return end
   
-  print(string.format("Contacts.Info: %d Contact 'Presence' Updates Available", #presence_updates))
+  Debug(string.format("Contacts.Info: %d Contact 'Presence' Updates Available", #presence_updates), 'basic')
   
   PresenceUpdateTimers[2]:Start(0)
 
@@ -1322,14 +1351,14 @@ PresenceUpdateTimers[2].EventHandler = function(t)
   
     local update = table.remove(presence_updates, 1)
     
-    if (not update) then print("No More Updates."); break; end
+    if (not update) then Debug("No More Updates.", 'basic'); break; end
     
     local position = phonebook.positions[update.jid]
     local contact = phonebook.contacts[position]
     
     if (not contact) then return end
     
-    print(string.format("Updating Contact [%d] '%s' from '%s' to '%s'", position, update.screenName, contact.presence, update.presence))
+    Debug(string.format("Updating Contact [%d] '%s' from '%s' to '%s'", position, update.screenName, contact.presence, update.presence), 'basic')
     
     contact.jid = update.jid
     contact.name = update.screenName
@@ -1340,7 +1369,7 @@ PresenceUpdateTimers[2].EventHandler = function(t)
   
   if ((#presence_updates) <= 0) and contactsImported then
   
-    print("Finished Processing Presence Updates.")
+    Debug("Finished Processing Presence Updates.", 'basic')
     BuildPhonebookChoices(phonebook.contacts)
   
   return end
@@ -1372,13 +1401,13 @@ function UpdateParticipant(this, isFirstImport)
   BuildCameraChoices(participants_list)
   
   if selectedParticipant and (selectedParticipant.id == this.user_id) then
-    print(string.format("Updating Selected Participant '%s', Audio Mute: %s, Video Mute: %s, Can Record: %s, Is Recording: %s",
+    Debug(string.format("Updating Selected Participant '%s', Audio Mute: %s, Video Mute: %s, Can Record: %s, Is Recording: %s",
       participants_list[this.user_id].name,
       participants_list[this.user_id].is_audio_muted,
       participants_list[this.user_id].is_video_muted,
       participants_list[this.user_id].can_record,
       participants_list[this.user_id].is_recording
-    ))
+    ), 'basic')
     
     --SetLED("Participant is Audio Muted", participants_list[this.user_id].is_audio_muted)
     --SetLED("Participant is Video Muted", participants_list[this.user_id].is_video_muted)
@@ -1392,7 +1421,7 @@ end
 
 function RemoveParticipant(this_id)
 
-  print("Attempting to Remove Participant")
+  Debug("Attempting to Remove Participant", 'basic')
   participants_list[this_id] = nil
   
   BuildParticipantChoices(participants_list)
@@ -1409,7 +1438,7 @@ zoomRoom.Connected = function()
 
   SetStatus(5, "Importing Contacts...")
   
-  print("SSH.Info: Connected")
+  Debug("SSH.Info: Connected", 'basic')
   
   SetLED("Connected", true)
   
@@ -1425,7 +1454,7 @@ zoomRoom.Connected = function()
 end
 
 zoomRoom.Reconnect = function()
-  print("SSH.Warning: Connection Reconnecting...")
+  Debug("SSH.Warning: Connection Reconnecting...", 'basic')
   SetLED("Connected", false)
 end
 
@@ -1452,46 +1481,46 @@ zoomRoom.Data = function()
     
     data = rapidjson.decode(line)
     
-    if not data then return print(string.format("UNREADABLE DATA: '%s'", line)) end
+    if not data then return Debug(string.format("UNREADABLE DATA: '%s'", line), 'verbose') end
     
-    --print(rapidjson.encode(data, {pretty = true}))
+    Debug(rapidjson.encode(data, {pretty = true}), 'verbose')
     
     local key = data.topKey:gsub(" ", "")
     
-    if data.Status.state == "Error" then print(string.format("Zoom.Error: Command: '%s', Error: '%s'", data.topKey, data.Status.message)) end
+    if data.Status.state == "Error" then Debug(string.format("Zoom.Error: Command: '%s', Error: '%s'", data.topKey, data.Status.message), 'basic') end
     
     if rapidjson.encode(data[data.topKey], {pretty = true}) == "{}" then return end
     
     local result, err = pcall(Zoom_Responses[key], data[data.topKey])
     
-    if err then print(string.format("Parsing Error: '%s', Data: \n\n%s", err, rapidjson.encode(data, {pretty = true}))) end
+    if err then Debug(string.format("Parsing Error: '%s', Data: \n\n%s", err, rapidjson.encode(data, {pretty = true})), 'verbose') end
     
   end
 end
 
 zoomRoom.Closed = function()
-  print("SSH.Error: Connection Closed")
+  Debug("SSH.Error: Connection Closed", 'basic')
   SetStatus(2, "Connection Closed")
   SetLED("Connected", false)
   ResetControls()
 end
 
 zoomRoom.Error = function(s, err)
-  print(string.format("SSH.Error: Error Occurred: %s", err))
+  Debug(string.format("SSH.Error: Error Occurred: %s", err), 'basic')
   SetStatus(2, string.format("SSH Error Occurred: %s", err))
   SetLED("Connected", false)
   ResetControls()
 end
 
 zoomRoom.Timeout = function()
-  print("SSH.Error: Connection Timed Out")
+  Debug("SSH.Error: Connection Timed Out", 'basic')
   SetStatus(2, "Connection Timed Out")
   SetLED("Connected", false)
   ResetControls()
 end
 
 zoomRoom.LoginFailed = function()
-  print("SSH.Error: Login Failed")
+  Debug("SSH.Error: Login Failed", 'basic')
   SetStatus(1, "Login Failed")
   SetLED("Connected", false)
   ResetControls()
@@ -1522,16 +1551,16 @@ end
 
 Controls["Join Meeting"].EventHandler = function()
   meeting_id_stored = Controls["Join Meeting ID"].String
-  local command = (Controls["Join Meeting Password"].String == "") and string.format("zCommand Dial Join meetingNumber: %s", Controls["Join Meeting ID"].String) or string.format("zCommand Dial Join meetingNumber: %s password: %s", meeting_id_stored, Controls["Join Meeting Password"].String)
+  GStore.joinMeeting.command = (Controls["Join Meeting Password"].String == "") and string.format("zCommand Dial Join meetingNumber: %s", Controls["Join Meeting ID"].String) or string.format("zCommand Dial Join meetingNumber: %s password: %s", meeting_id_stored, Controls["Join Meeting Password"].String)
   if Controls["In Call"].Boolean then
     ResetParticipantsList()
     Enqueue("zCommand Call Leave", 1)
     Enqueue("zCommand Call Sharing HDMI Stop", 1)
-    Timer.CallAfter(function() Enqueue(command, 1) end, 1)
+    GStore.joinMeeting.joinOnNextDisconnect = true
+    -- Timer.CallAfter(function() Enqueue(command, 1) end, 1)
   else
-    Enqueue(command, 1)
+    Enqueue(GStore.joinMeeting.command, 1)
   end
-  
 end
 
 function MeetingEnd()
@@ -1557,8 +1586,8 @@ end
 
 function CallAccept()
   
-  if not callerJID then return print("Zoom.Error: No CallerJID to Accept/Reject") end
-  print("Zoom.Info: Accepted Incoming Call")
+  if not callerJID then return Debug("Zoom.Error: No CallerJID to Accept/Reject", 'basic') end
+  Debug("Zoom.Info: Accepted Incoming Call", 'basic')
   Enqueue(string.format("zCommand Call Accept callerJID: %s", callerJID), 1)
   Enqueue("zCommand Call Sharing HDMI Stop", 1)
   SetLED("Incoming Call", false)
@@ -1566,20 +1595,20 @@ function CallAccept()
 end; Controls["Call Accept"].EventHandler = CallAccept
 
 Controls["Call Reject"].EventHandler = function()
-  if not callerJID then return print("Zoom.Error: No CallerJID to Accept/Reject") end
-  print("Zoom.Info: Rejected Incoming Call")
+  if not callerJID then return Debug("Zoom.Error: No CallerJID to Accept/Reject", 'basic') end
+  Debug("Zoom.Info: Rejected Incoming Call", 'basic')
   Enqueue(string.format("zCommand Call Reject callerJID: %s", callerJID), 1)
   SetLED("Incoming Call", false)
   Controls["Caller Name"].String = ""
 end
 
 function StartLocalPresentation()
-  if (global_status == "IN_MEETING") or (global_status == "CONNECTING_MEETING") then return print("Zoom.Info: Already In Call | Attemping to Connect") end
+  if (global_status == "IN_MEETING") or (global_status == "CONNECTING_MEETING") then return Debug("Zoom.Info: Already In Call | Attemping to Connect", 'basic') end
   Enqueue("zCommand Dial Sharing Duration: 30 displaystate: None password:", 1)
 end
 
 Controls["Start Local Presentation"].EventHandler = function()
-  print("Zoom.Info: 'Start Local Presentation' Manually Triggered")
+  Debug("Zoom.Info: 'Start Local Presentation' Manually Triggered", 'basic')
   StartLocalPresentation()
 end
 
@@ -1681,7 +1710,7 @@ end
 
 Controls["Expel Participant"].EventHandler = function()
 
-  if not myId or not selectedParticipant or (selectedParticipant.id == myId) then return print("Cannot Expel Myself...") end
+  if not myId or not selectedParticipant or (selectedParticipant.id == myId) then return Debug("Cannot Expel Myself...", 'basic') end
   
   Enqueue(string.format("zCommand Call Expel Id: %s", selectedParticipant.id), 1)
   RemoveParticipant(selectedParticipant.id)
@@ -1723,7 +1752,7 @@ end
 phonebookBypass = false
 Controls["Phonebook"].EventHandler = function(c)
   
-  if phonebookBypass then return print("Phonebook Selection: Double Trigger Detected, Ignoring 2nd Trigger") end
+  if phonebookBypass then return Debug("Phonebook Selection: Double Trigger Detected, Ignoring 2nd Trigger", 'basic') end
   
   phonebookBypass = true
   
@@ -1754,8 +1783,7 @@ Controls["Invite Contact"].EventHandler = function()
   for i, contact in ipairs(choices.phonebook) do
     if contact.selected then
       str = str .. string.format(" user: %s", contact.jid)
-      print(str)
-      print(string.format("Inviting Contact Name: %s, JID: %s", contact.Text, contact.jid))
+      Debug(string.format("Inviting Contact Name: %s, JID: %s", contact.Text, contact.jid), 'basic')
     end
   end
   
@@ -1782,7 +1810,7 @@ for i = 1, 4  do
   
   Controls[string.format("Pin to Screen %d", i)].EventHandler = function(c)
     
-    if not selectedParticipant then return print("Cannot Pin Participant - No ID Found") end
+    if not selectedParticipant then return Debug("Cannot Pin Participant - No ID Found", 'basic') end
     
     local screen = screen_ids[c]
 
@@ -1793,35 +1821,35 @@ end
 
 Controls["Unpin Participant"].EventHandler = function()
   
-  if not selectedParticipant then return print("Cannot Unpin Participant - None Selected") end
+  if not selectedParticipant then return Debug("Cannot Unpin Participant - None Selected", 'basic') end
   
   Enqueue(string.format("zCommand Call Pin Id: %s Enable: Off", selectedParticipant.id), 1)
 end
 
 Controls["Spotlight Participant"].EventHandler = function()
   
-  if not selectedParticipant then return print("Cannot Spotlight Participant - None Selected") end
+  if not selectedParticipant then return Debug("Cannot Spotlight Participant - None Selected", 'basic') end
   
   Enqueue(string.format("zCommand Call Spotlight Id: %s Enable: On", selectedParticipant.id), 1)
 end
 
 Controls["Remove Spotlight"].EventHandler = function()
   
-  if not selectedParticipant then return print("Cannot Spotlight Participant - None Selected") end
+  if not selectedParticipant then return Debug("Cannot Spotlight Participant - None Selected", 'basic') end
   
   Enqueue(string.format("zCommand Call Spotlight Id: %s Enable: Off", selectedParticipant.id), 1)
 end
 
 Controls["Allow Participant Record"].EventHandler = function()
   
-  if not selectedParticipant then return print("Cannot Allow Participant Record - None Selected") end
+  if not selectedParticipant then return Debug("Cannot Allow Participant Record - None Selected", 'basic') end
   
   Enqueue(string.format("zCommand Call Allowrecord Id: %s Enable: On", selectedParticipant.id), 1)
 end
 
 Controls["Disable Participant Record"].EventHandler = function()
   
-  if not selectedParticipant then return print("Cannot Disable Participant Record - None Selected") end
+  if not selectedParticipant then return Debug("Cannot Disable Participant Record - None Selected", 'basic') end
   
   Enqueue(string.format("zCommand Call Allowrecord Id: %s Enable: Off", selectedParticipant.id), 1)
 end
@@ -1830,7 +1858,7 @@ function SetView()
     
   local view = rapidjson.decode(Controls["Layout Style"].String)
   
-  if (not view) then return print("Cannot Set View - No View Selected") end
+  if (not view) then return Debug("Cannot Set View - No View Selected", 'basic') end
   
   local view = view.Text
 
@@ -1847,7 +1875,7 @@ end
 
 Controls["Mute Participant Mic"].EventHandler = function(c)
 
-  if (not selectedParticipant) or not (selectedParticipant.id) then return print("No Participant Selected") end
+  if (not selectedParticipant) or not (selectedParticipant.id) then return Debug("No Participant Selected", 'basic') end
   
   local state = (c.Boolean and "on" or "off")
 
@@ -1859,7 +1887,7 @@ end
 
 Controls["Mute Participant Video"].EventHandler = function(c)
   
-  if (not selectedParticipant) or not (selectedParticipant.id) then return print("No Participant Selected") end
+  if (not selectedParticipant) or not (selectedParticipant.id) then return Debug("No Participant Selected", 'basic') end
   
   local state = (c.Boolean and "on" or "off")
 
@@ -1905,7 +1933,7 @@ Controls["Closed Caption Visible"].EventHandler = function(c)
 end
 
 Controls["Share Camera"].EventHandler = function()
-  if not selected_camera_line then return print("Zoom.Error: No Camera ID - Please Select a Video Line") end
+  if not selected_camera_line then return Debug("Zoom.Error: No Camera ID - Please Select a Video Line", 'basic') end
   Enqueue(string.format("zCommand Call ShareCamera id: %s Status: on", selected_camera_line), 1)
 end
 
@@ -1919,8 +1947,8 @@ Controls["Request Control"].EventHandler = RequestControl
 
 function RequestControl()
   
-  if not current_cam_id then return print("Zoom.Error: No Camera ID - Please Select a Camera") end
-  print(string.format("zCommand Call CameraControl Id: %d State: RequestRemote Action: Left", current_cam_id))
+  if not current_cam_id then return Debug("Zoom.Error: No Camera ID - Please Select a Camera", 'basic') end
+  Debug(string.format("zCommand Call CameraControl Id: %d State: RequestRemote Action: Left", current_cam_id), 'basic')
   Send(string.format("zCommand Call CameraControl Id: %d State: RequestRemote Action: Left", current_cam_id))
   
 end
@@ -1936,7 +1964,7 @@ camera_ptz = {"Left", "Right", "Up", "Down"}
 for i = 1, 4 do
   Controls[string.format("Camera Control %d", i)].EventHandler = function(c)
     
-    if not current_cam_id then return print("Zoom.Error: No Camera ID - Please Select a Camera") end
+    if not current_cam_id then return Debug("Zoom.Error: No Camera ID - Please Select a Camera", 'basic') end
     ptzAction = camera_ptz[i]
     Send(string.format("zCommand Call CameraControl Id: %d State: %s Action: %s", current_cam_id, (c.Boolean and "Start" or "Stop"), camera_ptz[i]))
     
@@ -1950,7 +1978,7 @@ camera_zoom = {"In", "Out"}
 for i = 1, 2 do
   Controls[string.format("Camera Zoom %d", i)].EventHandler = function(c)
   
-    if not current_cam_id then return print("Zoom.Error: No Camera ID - Please Select a Camera") end
+    if not current_cam_id then return Debug("Zoom.Error: No Camera ID - Please Select a Camera", 'basic') end
     ptzAction = camera_zoom[i]
     Send(string.format("zCommand Call CameraControl Id: %d State: %s Action: %s", current_cam_id, (c.Boolean and "Start" or "Stop"), camera_zoom[i]))
     

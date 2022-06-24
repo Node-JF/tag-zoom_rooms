@@ -20,4 +20,13 @@ props = {
     },
     Value = "Green",
   },
+  {
+    Name = 'Debug Mode',
+    Type = "enum",
+    Choices = {
+      "Basic",
+      "Verbose"
+    },
+    Value = "Basic",
+  },
 }
