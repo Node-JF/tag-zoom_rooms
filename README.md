@@ -41,6 +41,16 @@ See [Q-SYS Online Help File - Plugins](https://q-syshelp.qsc.com/#Schematic_Libr
 
 The color of the selected items when in 'HTML5 Compatible' mode.
 
+#### Debug Mode
+
+> Basic | Verbose
+
+#### Contacts Request Limit
+
+The number of contacts to retrieve per request when fetching the phonebook.
+
+> Zoom Rooms 5.11.x displayed issues with retrieving large collections of contacts. If the verbose debug shows an 'UNREADABLE DATA' when parsing the phonebook response, try lowering this limit.
+
 ## Controls
 
 ### Config Page

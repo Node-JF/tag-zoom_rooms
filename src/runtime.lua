@@ -1275,7 +1275,7 @@ function ResetPhonebookList()
   Controls["Phonebook"].Choices = {"Fetching Phonebook..."}
   
   offset = 0
-  limit = 1000
+  limit = Properties['Contacts Request Limit'].Value
       
   Send(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit))
   
