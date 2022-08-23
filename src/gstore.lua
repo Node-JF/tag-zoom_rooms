@@ -79,11 +79,14 @@ Master_Object = {{
         ["Depth"] = 13,
         ["Controls"] = {{
             Name = "Audio Input Lines",
+            PrettyName = "Configuration~Audio Input Lines",
             ControlType = "Text",
             Style = "ListBox",
             Size = Sizes.ListBox,
             Width = "Full",
-            GridPos = 1
+            GridPos = 1,
+            PinStyle = "Output",
+            UserPin = true,
         }, {
             Name = "Set Audio Input",
             PrettyName = "Configuration~Set Audio Input",
@@ -97,11 +100,14 @@ Master_Object = {{
             GridPos = 1
         }, {
             Name = "Audio Output Lines",
+            PrettyName = "Configuration~Audio Output Lines",
             ControlType = "Text",
             Style = "ListBox",
             Size = Sizes.ListBox,
             Width = "Full",
-            GridPos = 8
+            GridPos = 8,
+            PinStyle = "Output",
+            UserPin = true,
         }, {
             Name = "Set Audio Output",
             PrettyName = "Configuration~Set Audio Output",
@@ -119,11 +125,14 @@ Master_Object = {{
         ["Depth"] = 7,
         ["Controls"] = {{
             Name = "Camera Lines",
+            PrettyName = "Configuration~Camera Lines",
             ControlType = "Text",
             Style = "ListBox",
             Size = Sizes.ListBox,
             Width = "Full",
-            GridPos = 1
+            GridPos = 1,
+            PinStyle = "Output",
+            UserPin = true,
         }, {
             Name = "Set Camera",
             PrettyName = "Configuration~Set Camera",
