@@ -2,12 +2,14 @@ rapidjson = require "rapidjson"
 
 zoomRoom = Ssh.New()
 zoomRoom.ReconnectTimeout = 1
-zoomRoom.ReadTimeout = 5
+zoomRoom.ReadTimeout = 10
 
-queue_timer, poll_timer = Timer.New(), Timer.New()
-micMuteTimer, camMuteTimer = Timer.New(), Timer.New()
-participantBypassTimer = Timer.New()
+QueueTimer, PollTimer = Timer.New(), Timer.New()
+MicMuteTimer, CamMuteTimer = Timer.New(), Timer.New()
+ParticipantBypassTimer = Timer.New()
 PresenceUpdateTimers = {Timer.New(), Timer.New()}
+ReceivedPhonebookTimer = Timer.New()
+
 
 myId = nil
 pollRate, commandRate = 1, .01
@@ -446,6 +448,9 @@ Zoom_Responses = {
   end,
   
   PhonebookBasicInfoChange = function(PhonebookBasicInfoChange)
+
+    ReceivedPhonebookTimer:Stop()
+    Debug("ReceivedPhonebookTimer: Phonebook Info Received; Stopped", 'basic')
     
     Controls['Number of Zoom Rooms'].String = PhonebookBasicInfoChange.numberOfZoomRoom
     Controls['Number of Normal Contacts'].String = PhonebookBasicInfoChange.numberOfNormalContact
@@ -453,23 +458,11 @@ Zoom_Responses = {
     Controls['Total Contacts'].String = PhonebookBasicInfoChange.total
     
     -- when the SSH socket reconnects, it takes a few moments before the non-legacy contacts are available. Wait until they are available before importing contacts.
+
+    -- if room has no contacts, then wouldn't set the contactsImports flag.
     if (PhonebookBasicInfoChange.numberOfNormalContact > 0) or (PhonebookBasicInfoChange.numberOfZoomRoom > 0) then
-      
-      contactsImported = true
-      
-      SetStatus(0, "")
-      
-      Enqueue("zCommand Bookings List")
-  
-      Enqueue("zStatus Capabilities")
-      
-      Enqueue("zStatus SystemUnit")
-      
-      Enqueue("zConfiguration Client appVersion")
-      
-      Enqueue("zstatus NumberOfScreens")
-      
-      poll_timer:Start(1.5)
+
+      ResetPhonebookList()
       
     end
     
@@ -498,6 +491,8 @@ Zoom_Responses = {
     elseif Phonebook['Updated Contact'] then
     
       if (not presence_updates) then presence_updates = {} end
+
+      Debug(string.format("Contact Updated Received '%s' is '%s'", Phonebook['Updated Contact'].screenName, Phonebook['Updated Contact'].presence), 'basic')
       table.insert(presence_updates, Phonebook['Updated Contact'])
       
     end
@@ -666,9 +661,10 @@ function Initialize()
 end
 
 function ResetTimers()
-  poll_timer:Stop()
-  queue_timer:Stop()
-  phonebookTimer:Stop()
+  PollTimer:Stop()
+  QueueTimer:Stop()
+  PhonebookTimer:Stop()
+  ReceivedPhonebookTimer:Stop()
 end
 
 function ResetVariables()
@@ -789,7 +785,7 @@ end
 
 function Poll()
   
-  poll_timer:Stop()
+  PollTimer:Stop()
   
   if (Controls["Force Hangup"].Boolean) and (Controls['In Call'].Boolean) and (canHangup) and (not Controls["Incoming Call"].Boolean) then MeetingEnd() end
   
@@ -845,6 +841,8 @@ function Poll()
     end
     
   end
+
+  print(string.format('Command Queue has [%d] Items', #commandQueue))
   
   Enqueue("zStatus Call Status")
   
@@ -852,7 +850,7 @@ function Poll()
   
   DisableParticipantControls((selectedParticipant == nil))
   
-  poll_timer:Start(pollRate)
+  PollTimer:Start(pollRate)
 end
 
 function Enqueue(command, position)
@@ -861,7 +859,7 @@ function Enqueue(command, position)
   if not zoomRoom.IsConnected then Debug("!! Enqueue Error [Socket not Connected]", 'basic'); Connect() end
   
   -- start the queue timer again if the queue was empty prior to this enqueue
-  if not commandQueue[1] then queue_timer:Start(0) end
+  if not commandQueue[1] then QueueTimer:Start(0) end
   
   -- put priority commands to the front of the queue
   if position then
@@ -873,7 +871,7 @@ end
 
 function Dequeue()
   
-  queue_timer:Stop()
+  QueueTimer:Stop()
   
   if not commandQueue[1] then return Debug("User.Info: No Commands in Queue", 'basic') end
   
@@ -884,7 +882,7 @@ function Dequeue()
   table.remove(commandQueue, 1)
   
   -- stop the queue timer if the queue is now empty
-  if commandQueue[1] then queue_timer:Start(commandRate) return end
+  if commandQueue[1] then QueueTimer:Start(commandRate) return end
 end
 
 function Send(s)
@@ -1022,11 +1020,15 @@ function BuildPhonebookChoices(tbl, is_clearing)
       Debug("Contacts.Info: Compiling Contacts List Box", 'basic')
       
       -- subscribe to these contacts
+      Debug(string.format('Filtered Phonebook: %s', rapidjson.encode(choices.phonebook, { pretty = true })))
+      local debugSubscriptions = ''
       for i, contact in ipairs(choices.phonebook) do
         local position = phonebook.positions[contact.jid]
-        Debug(string.format("Subscribing to Contact [%d] '%s'", position, phonebook.contacts[position].name), 'basic')
+        debugSubscriptions = debugSubscriptions .. '\n' .. string.format("Subscribing to Contact [%d] '%s'; at Position [%d]", position, phonebook.contacts[position].name, phonebook.positions[contact.jid])
         Enqueue(string.format("zcommand phonebook subscribe offset: %d limit: 1", position))
       end
+
+      Debug(debugSubscriptions, 'basic')
       
       -- clear unused variables
       chunkTimer = nil
@@ -1074,7 +1076,7 @@ function BuildPhonebookChoices(tbl, is_clearing)
     t:Stop()
     
     -- phonebook can be off by (+10) contacts - sometimes the phonebook doesn't update the number of contacts quickly, so this serves as a buffer so the phonebook isn't stuck in an import look untiles it upades.
-    if (#phonebook.contacts > tonumber(Controls['Total Contacts'].String) + 10) then t:Stop(); Debug("[Error Importing Contacts (Double Import Somewhere) - Retrying]", 'basic'); ResetPhonebookList() return end
+    if (tonumber(Controls['Total Contacts'].String)) and (#phonebook.contacts > tonumber(Controls['Total Contacts'].String) + 10) then t:Stop(); Debug("[Error Importing Contacts (Double Import Somewhere) - Retrying]", 'basic'); ResetPhonebookList() return end
 
     local count = 0
     
@@ -1090,8 +1092,12 @@ function BuildPhonebookChoices(tbl, is_clearing)
       
       --check filters and search criteria
       if Controls['Filter for Zoom Rooms Only'].Boolean then
-        if tbl[i].isZoomRoom then CheckSearch(tbl[i], i) end
+        if tbl[i].isZoomRoom then
+          Debug(string.format("Checking Against Filters for Zoom Room: [%s] at Index [%d]", tbl[i].displayName, i), 'basic')
+          CheckSearch(tbl[i], i)
+        end
       else
+        Debug(string.format("Checking Against Filters for Contact: [%s] at Index [%d]", tbl[i].displayName, i), 'basic')
         CheckSearch(tbl[i], i)
       end
       
@@ -1105,7 +1111,7 @@ function BuildPhonebookChoices(tbl, is_clearing)
     finish = finish + chunk
     
     -- if we're not done, run another chunk
-    if (checked_contacts < #phonebook.contacts) then t:Start(delay) return end
+    if (checked_contacts < #phonebook.contacts) then Debug("Contacts.Info: Running Another Chunk...", 'basic'); t:Start(delay) return end
     
     count = nil
     
@@ -1251,9 +1257,9 @@ function ResetParticipantsList()
 end
 
 -- if the CLI misses a phonebook response, this should start the chain again from where it was up to.
-phonebookTimer = Timer.New()
+PhonebookTimer = Timer.New()
 
-phonebookTimer.EventHandler = function()
+PhonebookTimer.EventHandler = function()
   
   Debug("Contacts.Info: Checking for More Contacts...", 'basic')
   
@@ -1263,7 +1269,8 @@ end
 
 function ResetPhonebookList()
   
-  SetStatus(0, "Fetching Phonebook...")
+  ResetTimers()
+  SetStatus(5, "Fetching Phonebook...")
   phonebookIsFetching = true
   phonebook = {}
   phonebook['contacts'] = {}
@@ -1275,7 +1282,7 @@ function ResetPhonebookList()
   Controls["Phonebook"].Choices = {"Fetching Phonebook..."}
   
   offset = 0
-  limit = Properties['Contacts Request Limit'].Value
+  limit = 5
       
   Send(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit))
   
@@ -1283,7 +1290,7 @@ end
 
 function UpdatePhonebook(this)
   
-  phonebookTimer:Stop()
+  PhonebookTimer:Stop()
   
   for i, contact in ipairs(this.Contacts) do InsertContact(contact) end
   
@@ -1297,7 +1304,7 @@ function UpdatePhonebook(this)
     
     Enqueue(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit), 1)
     
-    phonebookTimer:Start(5)
+    PhonebookTimer:Start(5)
     
   else
   
@@ -1309,9 +1316,29 @@ function UpdatePhonebook(this)
     
     BuildPhonebookChoices(phonebook.contacts)
     
-    phonebookTimer:Stop()
+    PhonebookTimer:Stop()
     
     PresenceUpdateTimers[1]:Start(10)
+
+    -- start normal operation here?
+
+    Debug("Plugin.Info: Starting Normal Operation", 'basic')
+
+    contactsImported = true
+      
+    SetStatus(0, "")
+    
+    Enqueue("zCommand Bookings List")
+
+    Enqueue("zStatus Capabilities")
+    
+    Enqueue("zStatus SystemUnit")
+    
+    Enqueue("zConfiguration Client appVersion")
+    
+    Enqueue("zstatus NumberOfScreens")
+    
+    PollTimer:Start(1.5)
   end
 end
 
@@ -1366,7 +1393,9 @@ PresenceUpdateTimers[2].EventHandler = function(t)
     contact.isZoomRoom = update.isZoomRoom
     
   end
-  
+
+  Debug(string.format('Contacts Imported: [$s]; Presence Updates:\n\n%s\n\n', contactsImported, rapidjson.encode(presence_updates, { pretty = true })), 'basic')
+
   if ((#presence_updates) <= 0) and contactsImported then
   
     Debug("Finished Processing Presence Updates.", 'basic')
@@ -1435,8 +1464,9 @@ end
 zoomRoom.Connected = function()
   
   Send("format json")
+  Send("echo off")
 
-  SetStatus(5, "Importing Contacts...")
+  SetStatus(5, "Waiting for Phonebook Update...")
   
   Debug("SSH.Info: Connected", 'basic')
   
@@ -1450,6 +1480,19 @@ zoomRoom.Connected = function()
   --MeetingEnd()
   ResetVariables()
   ResetTimers()
+
+  ReceivedPhonebookTimer.EventHandler = function(t)
+    Debug("ReceivedPhonebookTimer: Phonebook Info NOT Received; Getting Phonebook Without Known Limit", 'basic')
+    t:Stop()
+    Controls['Number of Zoom Rooms'].String = 'Not Received'
+    Controls['Number of Normal Contacts'].String = 'Not Received'
+    Controls['Number of Legacy Rooms'].String = 'Not Received'
+    Controls['Total Contacts'].String = 'Not Received'
+    ResetPhonebookList()
+  end
+
+  Debug("ReceivedPhonebookTimer: Starting", 'basic')
+  ReceivedPhonebookTimer:Start(8)
   
 end
 
@@ -1469,7 +1512,15 @@ zoomRoom.Data = function()
     
     line = zoomRoom:ReadLine(TcpSocket.EOL.Custom, '"\r\n}\r\n')
 
+    --clean the buffer
     if not line then return end
+      -- local buffer = zoomRoom:Read(zoomRoom.BufferLength)
+      -- if buffer then
+      --   return Debug(string.format("UNREADABLE BUFFER: '%s'", buffer), 'basic')
+      -- else 
+      --   return
+      -- end
+    -- end
     
     json_start = line:find("{\r\n")
     
@@ -1530,9 +1581,9 @@ end
 ----- EventHandlers -----
 -------------------------
 
-poll_timer.EventHandler = Poll
+PollTimer.EventHandler = Poll
 
-queue_timer.EventHandler = Dequeue
+QueueTimer.EventHandler = Dequeue
 
 Controls["IP Address"].EventHandler = function() Initialize(); Connect() end
 Controls["Connect"].EventHandler = Connect
@@ -1656,7 +1707,7 @@ Controls["Set Audio Input"].EventHandler = SetAudioInputID
 
 Controls["Set Audio Output"].EventHandler = SetAudioOutputID
 
-micMuteTimer.EventHandler = function(t)
+MicMuteTimer.EventHandler = function(t)
   t:Stop()
   micMuteBypass = false
 end
@@ -1664,10 +1715,10 @@ end
 Controls["Mute Mic"].EventHandler = function(c)
   Enqueue(string.format("zConfiguration Call Microphone mute: %s", (c.Boolean and "on" or "off")), 1)
   micMuteBypass = true
-  micMuteTimer:Start(.5)
+  MicMuteTimer:Start(.5)
 end
 
-camMuteTimer.EventHandler = function(t)
+CamMuteTimer.EventHandler = function(t)
   t:Stop()
   camMuteBypass = false
 end
@@ -1675,7 +1726,7 @@ end
 Controls["Mute Video"].EventHandler = function(c)
   Enqueue(string.format("zConfiguration Call Camera mute: %s", (c.Boolean and "on" or "off")), 1)
   camMuteBypass = true
-  camMuteTimer:Start(.5)
+  CamMuteTimer:Start(.5)
 end
 
 Controls["Start Recording"].EventHandler = function()
@@ -1868,7 +1919,7 @@ end
 Controls["Set View"].EventHandler = SetView
 --Controls["Layout Style"].EventHandler = SetView
 
-participantBypassTimer.EventHandler = function(t)
+ParticipantBypassTimer.EventHandler = function(t)
   t:Stop()
   updateParticipantBypass = false
 end
@@ -1882,7 +1933,7 @@ Controls["Mute Participant Mic"].EventHandler = function(c)
   Enqueue(string.format("zcommand call muteparticipant mute: %s id: %s", state, selectedParticipant.id), 1)
 
   updateParticipantBypass = true
-  participantBypassTimer:Start(2)
+  ParticipantBypassTimer:Start(2)
 end
 
 Controls["Mute Participant Video"].EventHandler = function(c)
@@ -1894,7 +1945,7 @@ Controls["Mute Participant Video"].EventHandler = function(c)
   Enqueue(string.format("zcommand call muteparticipantvideo mute: %s id: %s", state, selectedParticipant.id), 1)
 
   updateParticipantBypass = true
-  participantBypassTimer:Start(2)
+  ParticipantBypassTimer:Start(2)
 end
 
 Controls["Filter for Zoom Rooms Only"].EventHandler = function() BuildPhonebookChoices(phonebook.contacts) end

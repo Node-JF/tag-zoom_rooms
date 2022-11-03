@@ -11,6 +11,10 @@ See [Q-SYS Online Help File - Plugins](https://q-syshelp.qsc.com/#Schematic_Libr
 * In the Zoom Room Cloud under *Zoom Rooms -> Control System API* you must enable both the **Enable Control System API** setting and the **Allow SSH Connections** setting
 * In the Zoom Room Cloud under *Zoom Rooms -> Control System API* you must set a **Passcode**. This will entered in the plugin under *Config -> Connection Settings -> Password*
 
+## Change Log
+
+- 1.10: If ZR doesn't send PhonebookBasicInfoChange event, manually fetch phonebook before SSH timeout occurs. Phonebook contacts numbers can't be known if this occurs, but we can still fetch the contacts.
+
 ## Notable features
 
 * Massive phonebook support (tested with a phonebook over over 17000 contacts).
@@ -44,12 +48,6 @@ The color of the selected items when in 'HTML5 Compatible' mode.
 #### Debug Mode
 
 > Basic | Verbose
-
-#### Contacts Request Limit
-
-The number of contacts to retrieve per request when fetching the phonebook.
-
-> Zoom Rooms 5.11.x displayed issues with retrieving large collections of contacts. If the verbose debug shows an 'UNREADABLE DATA' when parsing the phonebook response, try lowering this limit.
 
 ## Controls
 

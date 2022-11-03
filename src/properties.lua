@@ -28,12 +28,5 @@ props = {
       "Verbose"
     },
     Value = "Basic",
-  },
-  {
-    Name = "Contacts Request Limit",
-    Type = "integer",
-    Min  = 50,
-    Max = 500,
-    Value = 250
-  },
+  }
 }
