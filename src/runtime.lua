@@ -1540,7 +1540,9 @@ zoomRoom.Data = function()
     
     if data.Status.state == "Error" then Debug(string.format("Zoom.Error: Command: '%s', Error: '%s'", data.topKey, data.Status.message), 'basic') end
     
-    if rapidjson.encode(data[data.topKey], {pretty = true}) == "{}" then return end
+    if data.type == 'zEvent' then Debug(string.format("Zoom.Event: topKey: '%s', Parsed Key: '%s'", data.topKey, key), 'basic') end
+
+    if (rapidjson.encode(data[data.topKey], {pretty = true}) == "{}") and (data.type ~= 'zEvent') then return end
     
     local result, err = pcall(Zoom_Responses[key], data[data.topKey])
     
