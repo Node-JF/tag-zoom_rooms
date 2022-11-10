@@ -1,8 +1,8 @@
 -- Information block for the plugin
 PluginInfo = {
   Name = "TAG~Zoom~Zoom Rooms CLI",
-  Version = "1.12",
-  BuildVersion = "1.12.0.1",
+  Version = "1.13",
+  BuildVersion = "1.13.0.2",
   Id = "c446ef61-0b8d-41bb-b354-d24e35165a2d",
   Description = "Zoom Rooms JSON CLI with support for massive phonebooks, contacts searching & filtering, contact presence updates, HTML5 compatible listboxes, host ending call flag options, custom plugin settings",
   Author = "Jason Foord",
@@ -1765,7 +1765,7 @@ if Controls then
   
   zoomRoom = Ssh.New()
   zoomRoom.ReconnectTimeout = 1
-  zoomRoom.ReadTimeout = 10
+  zoomRoom.ReadTimeout = 5
   
   QueueTimer, PollTimer = Timer.New(), Timer.New()
   MicMuteTimer, CamMuteTimer = Timer.New(), Timer.New()
@@ -1860,7 +1860,7 @@ if Controls then
     joinMeeting = {
       command = "",
       joinOnNextDisconnect = false
-    }
+    },
   }
   
   Zoom_Responses = {
@@ -2221,10 +2221,20 @@ if Controls then
       Controls['Total Contacts'].String = PhonebookBasicInfoChange.total
       
       -- when the SSH socket reconnects, it takes a few moments before the non-legacy contacts are available. Wait until they are available before importing contacts.
-  
+      local function validateContacts()
+        if (Controls['Number of Zoom Rooms'].String ~= tostring(PhonebookBasicInfoChange.numberOfZoomRoom)) then return false end
+        if (Controls['Number of Normal Contacts'].String ~= tostring(PhonebookBasicInfoChange.numberOfNormalContact)) then return false end
+        if (Controls['Number of Legacy Rooms'].String ~= tostring(PhonebookBasicInfoChange.numberOfLegacyRoom)) then return false end
+        if (Controls['Total Contacts'].String ~= tostring(PhonebookBasicInfoChange.total)) then return false end
+        return true
+      end
       -- if room has no contacts, then wouldn't set the contactsImports flag.
       if (PhonebookBasicInfoChange.numberOfNormalContact > 0) or (PhonebookBasicInfoChange.numberOfZoomRoom > 0) then
   
+        -- if nothing changed, ignore event
+        if validateContacts() then return Debug('Zoom.Info: Contacts have not Changed, Ignoring zEvent', 'basic') end
+  
+        Debug('Zoom.Info: Contacts Changed', 'basic')
         ResetPhonebookList()
         
       end
@@ -3255,7 +3265,7 @@ if Controls then
     end
   
     Debug("ReceivedPhonebookTimer: Starting", 'basic')
-    ReceivedPhonebookTimer:Start(8)
+    ReceivedPhonebookTimer:Start(3)
     
   end
   
@@ -3518,10 +3528,18 @@ if Controls then
     local choice = rapidjson.decode(Controls["Booking List"].String)
     
     if not choice then return end
+  
+    GStore.joinMeeting.command = string.format("zCommand Dial Start meetingNumber: %s", choice.number)
+    if Controls["In Call"].Boolean then
+      ResetParticipantsList()
+      Enqueue("zCommand Call Leave", 1)
+      Enqueue("zCommand Call Sharing HDMI Stop", 1)
+      GStore.joinMeeting.joinOnNextDisconnect = true
+      -- Timer.CallAfter(function() Enqueue(command, 1) end, 1)
+    else
+      Enqueue(GStore.joinMeeting.command, 1)
+    end
     
-    Enqueue("zCommand Call Leave", 1)
-    ResetParticipantsList()
-    Timer.CallAfter(function() Enqueue(string.format("zCommand Dial Start meetingNumber: %s", choice.number), 1) end, 1)
   end
   
   Controls["Expel Participant"].EventHandler = function()
