@@ -583,7 +583,7 @@ Zoom_Responses = {
     
     Debug(rapidjson.encode(SystemUnit, {pretty = true}), 'basic')
 
-    if (not contactsImported) then return end
+    -- if (not contactsImported) then return end
     
     if SystemUnit.room_info then
       Controls["Room Name"].String = (SystemUnit.room_info and SystemUnit.room_info.room_name) and SystemUnit.room_info.room_name
@@ -712,7 +712,7 @@ end
 function SetStatus(code, message)
 
   Controls["Status"].Value = code
-  Controls["Status"].String = string.format("%s: %s", message, ip and ip or "None")
+  Controls["Status"].String = string.format("%s%s", message and string.format(': %s', message) or '', ip and ip or "None")
   
   if (code ~= 0) and (message ~= "") then return Debug(string.format("User.Info: Settings Status with Code: '%d', Message: '%s'", code, message), 'basic') end
   
@@ -871,12 +871,12 @@ function Enqueue(command, options)
   -- check if socket is connected
   if not zoomRoom.IsConnected then Debug("!! Enqueue Error [Socket not Connected]", 'basic'); Connect() end
 
-  if (options.type == 'phonebook') then
-    if (#commandQueue > 0) then
-      Debug( string.format('Contacts.Error: Clearing the Queue:\n\n%s\n', rapidjson.encode(commandQueue, { pretty = true})), 'basic')
-      commandQueue = {}
-    end
-  end
+  -- if (options.type == 'phonebook') then
+  --   if (#commandQueue > 0) then
+  --     Debug( string.format('Contacts.Error: Clearing the Queue:\n\n%s\n', rapidjson.encode(commandQueue, { pretty = true})), 'basic')
+  --     commandQueue = {}
+  --   end
+  -- end
   
   -- put priority commands to the front of the queue
   if options.position then
@@ -1318,6 +1318,20 @@ function ResetPhonebookList()
   commandQueue = {}
   QueueTimer:Start(commandRate)
   Enqueue(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit), { type = 'phonebook' })
+
+  Debug("Plugin.Info: Starting Normal Operation", 'basic')
+    
+  Enqueue("zCommand Bookings List")
+
+  Enqueue("zStatus Capabilities")
+  
+  Enqueue("zStatus SystemUnit")
+  
+  Enqueue("zConfiguration Client appVersion")
+  
+  Enqueue("zstatus NumberOfScreens")
+  
+  PollTimer:Start(1.5)
   
 end
 
@@ -1368,23 +1382,23 @@ function UpdatePhonebook(this)
 
     -- start normal operation here?
 
-    Debug("Plugin.Info: Starting Normal Operation", 'basic')
-
     contactsImported = true
       
     SetStatus(0, "")
-    
-    Enqueue("zCommand Bookings List")
 
-    Enqueue("zStatus Capabilities")
+    -- Debug("Plugin.Info: Starting Normal Operation", 'basic')
     
-    Enqueue("zStatus SystemUnit")
+    -- Enqueue("zCommand Bookings List")
+
+    -- Enqueue("zStatus Capabilities")
     
-    Enqueue("zConfiguration Client appVersion")
+    -- Enqueue("zStatus SystemUnit")
     
-    Enqueue("zstatus NumberOfScreens")
+    -- Enqueue("zConfiguration Client appVersion")
     
-    PollTimer:Start(1.5)
+    -- Enqueue("zstatus NumberOfScreens")
+    
+    -- PollTimer:Start(1.5)
   end
 end
 
@@ -1445,7 +1459,7 @@ PresenceUpdateTimers[2].EventHandler = function(t)
 
   Debug(string.format('Contacts Imported: [$s]; Presence Updates:\n\n%s\n\n', contactsImported, rapidjson.encode(presence_updates, { pretty = true })), 'basic')
 
-  if ((#presence_updates) <= 0) and contactsImported then
+  if (#presence_updates <= 0) and contactsImported then
   
     Debug("Finished Processing Presence Updates.", 'basic')
     BuildPhonebookChoices(phonebook.contacts)
