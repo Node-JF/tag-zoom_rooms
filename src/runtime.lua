@@ -712,7 +712,7 @@ end
 function SetStatus(code, message)
 
   Controls["Status"].Value = code
-  Controls["Status"].String = string.format("%s%s", message and string.format(': %s', message) or '', ip and ip or "None")
+  Controls["Status"].String = string.format("%s%s", (message ~= '') and string.format(': %s', message) or '', ip and ip or "None")
   
   if (code ~= 0) and (message ~= "") then return Debug(string.format("User.Info: Settings Status with Code: '%d', Message: '%s'", code, message), 'basic') end
   

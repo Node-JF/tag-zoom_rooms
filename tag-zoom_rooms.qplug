@@ -2,7 +2,7 @@
 PluginInfo = {
   Name = "TAG~Zoom~Zoom Rooms CLI",
   Version = "1.14",
-  BuildVersion = "1.14.0.44",
+  BuildVersion = "1.14.0.45",
   Id = "c446ef61-0b8d-41bb-b354-d24e35165a2d",
   Description = "Zoom Rooms JSON CLI with support for massive phonebooks, contacts searching & filtering, contact presence updates, HTML5 compatible listboxes, host ending call flag options, custom plugin settings",
   Author = "Jason Foord",
@@ -2485,7 +2485,7 @@ if Controls then
   function SetStatus(code, message)
   
     Controls["Status"].Value = code
-    Controls["Status"].String = string.format("%s%s", message and string.format(': %s', message) or '', ip and ip or "None")
+    Controls["Status"].String = string.format("%s%s", (message ~= '') and string.format(': %s', message) or '', ip and ip or "None")
     
     if (code ~= 0) and (message ~= "") then return Debug(string.format("User.Info: Settings Status with Code: '%d', Message: '%s'", code, message), 'basic') end
     
