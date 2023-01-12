@@ -1,5 +1,7 @@
 # TAG Zoom Rooms
 
+See [Change Log](/CHANGELOG.md)
+
 This is a Q-SYS Plugin for the *Zoom Rooms Conferencing* software.
 
 > Bug reports and feature requests should be sent to Jason Foord (jf@tag.com.au).
@@ -191,6 +193,10 @@ The number of Legacy Rooms in the phonebook.
 #### Total Contacts
 
 The total number of contacts.
+
+#### Contacts Processed
+
+The total number of unique contacts that the plugin has imported successfully.
 
 #### Load Phonebook
 

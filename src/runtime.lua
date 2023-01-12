@@ -2,7 +2,7 @@ rapidjson = require "rapidjson"
 
 zoomRoom = Ssh.New()
 zoomRoom.ReconnectTimeout = 1
-zoomRoom.ReadTimeout = 5
+zoomRoom.ReadTimeout = 10
 
 QueueTimer, PollTimer = Timer.New(), Timer.New()
 MicMuteTimer, CamMuteTimer = Timer.New(), Timer.New()
@@ -12,7 +12,7 @@ ReceivedPhonebookTimer = Timer.New()
 
 
 myId = nil
-pollRate, commandRate = 1, .01
+pollRate, commandRate = 1, 0.01
 micMuteBypass, camMuteBypass = false, false
 updateParticipantBypass = false
 phonebookReceived = false
@@ -209,7 +209,7 @@ Zoom_Responses = {
           Debug("Call Connected - Firing 'Call Connected' Trigger", 'basic')
         end
         inCall = true
-        Enqueue("zCommand Call Info", 1)
+        Enqueue("zCommand Call Info", { position = 1 })
         if (not participantsReceived) then Enqueue("zCommand Call ListParticipants") end
         
       end
@@ -377,7 +377,7 @@ Zoom_Responses = {
       -- force 'share all' if it's available and the setting is on
       if Controls["Force Share All"].Boolean then
       
-        Enqueue("zConfiguration Call Layout Style: ShareAll", 1)
+        Enqueue("zConfiguration Call Layout Style: ShareAll", { position = 1 })
         Controls["Layout Style"].Choices = { {Color = "Red", Text = "Forcing 'Share All'"} }
         
       else
@@ -804,11 +804,11 @@ function Poll()
   if (not audioInputConfigurationReceived) then Enqueue("zStatus Audio Input Line") end
   if (not audioOutputConfigurationReceived) then Enqueue("zStatus Audio Output Line") end
   
-  if Controls["In Call Presentation"].Boolean and Controls["Share HDMI Automatically in Presentation"].Boolean then Enqueue("zCommand Call Sharing HDMI Start", 1) end
+  if Controls["In Call Presentation"].Boolean and Controls["Share HDMI Automatically in Presentation"].Boolean then Enqueue("zCommand Call Sharing HDMI Start", { position = 1 }) end
   
   if inCall and (not hangingUp) then
     
-    Enqueue("zCommand Call Info", 1)
+    Enqueue("zCommand Call Info", { position = 1 })
     
     Enqueue("zStatus Call Layout")
     
@@ -838,7 +838,7 @@ function Poll()
       Debug("Zoom.Info: Waiting for Meeting Disconnect Before Joining New Meeting...", 'basic')
       if Controls["Call Status"].String == "Not in Meeting" then
         Debug("Zoom.Info: Sending Join Command", 'basic')
-        Enqueue(GStore.joinMeeting.command, 1)
+        Enqueue(GStore.joinMeeting.command, { position = 1 })
         GStore.joinMeeting.joinOnNextDisconnect = false
       else
         Debug("Zoom.Info: Still in Meeting - Cannot Join", 'basic')
@@ -863,20 +863,36 @@ function Poll()
   PollTimer:Start(pollRate)
 end
 
-function Enqueue(command, position)
+function Enqueue(command, options)
+
+  -- default the options argument
+  if not options then options = {} end
 
   -- check if socket is connected
   if not zoomRoom.IsConnected then Debug("!! Enqueue Error [Socket not Connected]", 'basic'); Connect() end
-  
-  -- start the queue timer again if the queue was empty prior to this enqueue
-  if not commandQueue[1] then QueueTimer:Start(0) end
+
+  if (options.type == 'phonebook') then
+    if (#commandQueue > 0) then
+      Debug( string.format('Contacts.Error: Clearing the Queue:\n\n%s\n', rapidjson.encode(commandQueue, { pretty = true})), 'basic')
+      commandQueue = {}
+    end
+  end
   
   -- put priority commands to the front of the queue
-  if position then
-    table.insert(commandQueue, position, command)
-  return end
-  
-  table.insert(commandQueue, command)
+  if options.position then
+    table.insert(commandQueue, options.position, command)
+    Debug( string.format('Sock.Enqueue: Command [%s] at Position [%d]', command, options.position), 'basic')
+  else
+    table.insert(commandQueue, command)
+    Debug( string.format('Sock.Enqueue: Command [%s]', command), 'basic')
+  end
+
+  if (#commandQueue == 1) then 
+    if (not options.addedDelay) then options.addedDelay = 0 end
+    -- start the queue timer again if the queue was empty prior to this enqueue
+    local time = 0 + options.addedDelay
+    QueueTimer:Start(time)
+  end
 end
 
 function Dequeue()
@@ -885,14 +901,18 @@ function Dequeue()
   
   if not commandQueue[1] then return Debug("User.Info: No Commands in Queue", 'basic') end
   
-  -- write the command to socket
-  Send(commandQueue[1])
+  Debug( string.format('Queue.Report: Before Dequeueing Command:\n\n%s\n', rapidjson.encode(commandQueue, { pretty = true})), 'verbose')
+
+  local command = table.remove(commandQueue, 1)
+
+  Debug( string.format('Sock.Dequeue: Command [%s]', command), 'basic')
+  Debug( string.format('Queue.Report: After Dequeueing Command:\n\n%s\n', rapidjson.encode(commandQueue, { pretty = true})), 'verbose')
   
-  -- remove the command after sending
-  table.remove(commandQueue, 1)
+  -- write the command to socket
+  Send(command)
   
   -- stop the queue timer if the queue is now empty
-  if commandQueue[1] then QueueTimer:Start(commandRate) return end
+  if (#commandQueue > 0) then QueueTimer:Start(commandRate) return end
 end
 
 function Send(s)
@@ -1035,7 +1055,7 @@ function BuildPhonebookChoices(tbl, is_clearing)
       for i, contact in ipairs(choices.phonebook) do
         local position = phonebook.positions[contact.jid]
         debugSubscriptions = debugSubscriptions .. '\n' .. string.format("Subscribing to Contact [%d] '%s'; at Position [%d]", position, phonebook.contacts[position].name, phonebook.positions[contact.jid])
-        Enqueue(string.format("zcommand phonebook subscribe offset: %d limit: 1", position))
+        Enqueue(string.format("zcommand phonebook subscribe offset: %d limit: 1", position), { type = 'phonebook' })
       end
 
       Debug(debugSubscriptions, 'basic')
@@ -1103,11 +1123,11 @@ function BuildPhonebookChoices(tbl, is_clearing)
       --check filters and search criteria
       if Controls['Filter for Zoom Rooms Only'].Boolean then
         if tbl[i].isZoomRoom then
-          Debug(string.format("Checking Against Filters for Zoom Room: [%s] at Index [%d]", tbl[i].displayName, i), 'basic')
+          Debug(string.format("Checking Against Filters for Zoom Room: [%s] at Index [%d]", tbl[i].name, i), 'basic')
           CheckSearch(tbl[i], i)
         end
       else
-        Debug(string.format("Checking Against Filters for Contact: [%s] at Index [%d]", tbl[i].displayName, i), 'basic')
+        Debug(string.format("Checking Against Filters for Contact: [%s] at Index [%d]", tbl[i].name, i), 'basic')
         CheckSearch(tbl[i], i)
       end
       
@@ -1271,9 +1291,9 @@ PhonebookTimer = Timer.New()
 
 PhonebookTimer.EventHandler = function()
   
-  Debug("Contacts.Info: Checking for More Contacts...", 'basic')
+  Debug( string.format("Contacts.Info: PhonebookTimer Expired - Re-Checking for [%s] More Contacts From Offset [%s]", limit, offset), 'basic')
   
-  Enqueue(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit), 1) 
+  Enqueue(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit), { type = 'phonebook' }) 
 
 end
 
@@ -1289,36 +1309,52 @@ function ResetPhonebookList()
   PresenceUpdateTimers[1]:Stop()
   PresenceUpdateTimers[2]:Stop()
   
+  Controls['Contacts Processed'].String = ''
   Controls["Phonebook"].Choices = {"Fetching Phonebook..."}
   
   offset = 0
-  limit = 5
-      
-  Send(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit))
+  limit = 20
+  
+  commandQueue = {}
+  QueueTimer:Start(commandRate)
+  Enqueue(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit), { type = 'phonebook' })
   
 end
 
 function UpdatePhonebook(this)
   
   PhonebookTimer:Stop()
+
+  if (this.Offset ~= offset) then -- if the result doesn't line up with the request, send the original request again and return here
+    Debug(string.format("Contacts.Error: Received Offset [%d] is Different from Requested Offset [%s] - Dequeueing Again", this.Offset, offset), 'basic')
+    -- Dequeue()
+    Enqueue(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit), { type = 'phonebook', addedDelay = 0 }) -- give addedDelay to allow zr to recover?
+  return end
+
+  for i, contact in ipairs(this.Contacts) do
+    local contactPosition = phonebook.positions[contact.jid]
+    if (contactPosition == nil) then
+      InsertContact(contact)
+    else
+      Debug(string.format('Contacts.Error: Contact [%s] Exists at Position [%d]', contact.jid, contactPosition), 'basic')
+    end
+  end
   
-  for i, contact in ipairs(this.Contacts) do InsertContact(contact) end
-  
-  Debug(string.format("Contacts.Info: Added %d Contacts out of %s (Limit)", #this.Contacts, limit), 'basic')
+  Debug(string.format("Contacts.Info: Added [%d] Contacts out of [%s] (Limit) From Offset [%s]", #this.Contacts, this.Limit, this.Offset), 'basic')
+  Controls['Contacts Processed'].String = #phonebook.contacts
     
   if #this.Contacts >= limit then
-  
-    Debug("Contacts.Info: Checking for More Contacts...", 'basic')
     
     offset = offset + limit
+    Debug( string.format("Contacts.Info: Increasing Offset to [%s]", offset), 'basic')
+    Debug( string.format("Contacts.Info: Checking for [%s] More Contacts From Offset [%s]", limit, offset), 'basic')
+    Enqueue(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit), { type = 'phonebook' })
     
-    Enqueue(string.format("zCommand Phonebook List Offset: %d Limit: %d", offset, limit), 1)
-    
-    PhonebookTimer:Start(5)
+    PhonebookTimer:Start(1.5)
     
   else
   
-    Debug(string.format("Contacts.Info: %d Total Contacts Imported from Zoom", #phonebook.contacts), 'basic')
+    Debug(string.format("Contacts.Info: [%d] Total Contacts Imported from Zoom", #phonebook.contacts), 'basic')
     
     SetStatus(0, "Phonebook Received")
     
@@ -1356,6 +1392,9 @@ function InsertContact(contact)
   
   if not contact then return end
   
+  -- create a hash map of jid => phonebook.contacts index, then check hashmap when inserting a contact? or:
+  -- { jid = true }
+
   table.insert(phonebook.contacts, {
     jid = contact.jid,
     name = contact.screenName,
@@ -1548,7 +1587,7 @@ zoomRoom.Data = function()
     
     local key = data.topKey:gsub(" ", "")
     
-    if data.Status.state == "Error" then Debug(string.format("Zoom.Error: Command: '%s', Error: '%s'", data.topKey, data.Status.message), 'basic') end
+    if data.Status.state ~= "OK" then Debug(string.format("Zoom.Error: Command: [%s], State: [%s], Error: [%s]", data.topKey, data.Status.state, data.Status.message), 'basic') end
     
     if data.type == 'zEvent' then Debug(string.format("Zoom.Event: topKey: '%s', Parsed Key: '%s'", data.topKey, key), 'basic') end
 
@@ -1605,9 +1644,9 @@ Controls["Meet Now"].EventHandler = function()
   ResetParticipantsList()
   
   if Controls["In Call Presentation"].Boolean then
-    Enqueue("zCommand Call Sharing ToNormal", 1)
+    Enqueue("zCommand Call Sharing ToNormal", { position = 1 })
   else
-    Enqueue("zCommand Dial StartPmi Duration: 30", 1)
+    Enqueue("zCommand Dial StartPmi Duration: 30", { position = 1 })
   end
   
 end
@@ -1617,12 +1656,12 @@ Controls["Join Meeting"].EventHandler = function()
   GStore.joinMeeting.command = (Controls["Join Meeting Password"].String == "") and string.format("zCommand Dial Join meetingNumber: %s", Controls["Join Meeting ID"].String) or string.format("zCommand Dial Join meetingNumber: %s password: %s", meeting_id_stored, Controls["Join Meeting Password"].String)
   if Controls["In Call"].Boolean then
     ResetParticipantsList()
-    Enqueue("zCommand Call Leave", 1)
-    Enqueue("zCommand Call Sharing HDMI Stop", 1)
+    Enqueue("zCommand Call Leave", { position = 1 })
+    Enqueue("zCommand Call Sharing HDMI Stop", { position = 1 })
     GStore.joinMeeting.joinOnNextDisconnect = true
-    -- Timer.CallAfter(function() Enqueue(command, 1) end, 1)
+    -- Timer.CallAfter(function() Enqueue(command, { position = 1 }) end, 1)
   else
-    Enqueue(GStore.joinMeeting.command, 1)
+    Enqueue(GStore.joinMeeting.command, { position = 1 })
   end
 end
 
@@ -1631,7 +1670,7 @@ function MeetingEnd()
   callWasAutoAnswered = false
   commandQueue = {}
   ResetParticipantsList()
-  Enqueue("zCommand Call Disconnect", 1)
+  Enqueue("zCommand Call Disconnect", { position = 1 })
 end
 
 Controls["Meeting End"].EventHandler = MeetingEnd
@@ -1642,7 +1681,7 @@ Controls["Meeting Leave"].EventHandler = function()
   commandQueue = {}
   SetLED("In Call Presentation", false)
   ResetParticipantsList()
-  Enqueue("zCommand Call Leave", 1)
+  Enqueue("zCommand Call Leave", { position = 1 })
 end
 
 
@@ -1651,8 +1690,8 @@ function CallAccept()
   
   if not callerJID then return Debug("Zoom.Error: No CallerJID to Accept/Reject", 'basic') end
   Debug("Zoom.Info: Accepted Incoming Call", 'basic')
-  Enqueue(string.format("zCommand Call Accept callerJID: %s", callerJID), 1)
-  Enqueue("zCommand Call Sharing HDMI Stop", 1)
+  Enqueue(string.format("zCommand Call Accept callerJID: %s", callerJID), { position = 1 })
+  Enqueue("zCommand Call Sharing HDMI Stop", { position = 1 })
   SetLED("Incoming Call", false)
   Controls["Caller Name"].String = ""
 end; Controls["Call Accept"].EventHandler = CallAccept
@@ -1660,14 +1699,14 @@ end; Controls["Call Accept"].EventHandler = CallAccept
 Controls["Call Reject"].EventHandler = function()
   if not callerJID then return Debug("Zoom.Error: No CallerJID to Accept/Reject", 'basic') end
   Debug("Zoom.Info: Rejected Incoming Call", 'basic')
-  Enqueue(string.format("zCommand Call Reject callerJID: %s", callerJID), 1)
+  Enqueue(string.format("zCommand Call Reject callerJID: %s", callerJID), { position = 1 })
   SetLED("Incoming Call", false)
   Controls["Caller Name"].String = ""
 end
 
 function StartLocalPresentation()
   if (global_status == "IN_MEETING") or (global_status == "CONNECTING_MEETING") then return Debug("Zoom.Info: Already In Call | Attemping to Connect", 'basic') end
-  Enqueue("zCommand Dial Sharing Duration: 30 displaystate: None password:", 1)
+  Enqueue("zCommand Dial Sharing Duration: 30 displaystate: None password:", { position = 1 })
 end
 
 Controls["Start Local Presentation"].EventHandler = function()
@@ -1676,27 +1715,27 @@ Controls["Start Local Presentation"].EventHandler = function()
 end
 
 Controls["Sharing Instructions None"].EventHandler = function()
-  Enqueue("zCommand Call SetInstructions Show: off Type: None", 1)
+  Enqueue("zCommand Call SetInstructions Show: off Type: None", { position = 1 })
 end
 
 Controls["Sharing Instructions Laptop"].EventHandler = function()
-  Enqueue("zCommand Call SetInstructions Show: on Type: Laptop", 1)
+  Enqueue("zCommand Call SetInstructions Show: on Type: Laptop", { position = 1 })
 end
 
 Controls["Sharing Instructions iOS"].EventHandler = function()
-  Enqueue("zCommand Call SetInstructions Show: on Type: IOS", 1)
+  Enqueue("zCommand Call SetInstructions Show: on Type: IOS", { position = 1 })
 end
 
 Controls["Start Sharing HDMI"].EventHandler = function()
-  Enqueue("zCommand Call Sharing HDMI Start", 1)
+  Enqueue("zCommand Call Sharing HDMI Start", { position = 1 })
 end
 
 Controls["Stop Sharing HDMI"].EventHandler = function()
-  Enqueue("zCommand Call Sharing HDMI Stop", 1)
+  Enqueue("zCommand Call Sharing HDMI Stop", { position = 1 })
 end
 
 Controls["Stop Local Sharing"].EventHandler = function()
-  Enqueue("zCommand Call Sharing Disconnect", 1)
+  Enqueue("zCommand Call Sharing Disconnect", { position = 1 })
 end
 
 Controls["Participant Cameras"].EventHandler = function(c)
@@ -1725,7 +1764,7 @@ MicMuteTimer.EventHandler = function(t)
 end
 
 Controls["Mute Mic"].EventHandler = function(c)
-  Enqueue(string.format("zConfiguration Call Microphone mute: %s", (c.Boolean and "on" or "off")), 1)
+  Enqueue(string.format("zConfiguration Call Microphone mute: %s", (c.Boolean and "on" or "off")), { position = 1 })
   micMuteBypass = true
   MicMuteTimer:Start(.5)
 end
@@ -1736,29 +1775,29 @@ CamMuteTimer.EventHandler = function(t)
 end
 
 Controls["Mute Video"].EventHandler = function(c)
-  Enqueue(string.format("zConfiguration Call Camera mute: %s", (c.Boolean and "on" or "off")), 1)
+  Enqueue(string.format("zConfiguration Call Camera mute: %s", (c.Boolean and "on" or "off")), { position = 1 })
   camMuteBypass = true
   CamMuteTimer:Start(.5)
 end
 
 Controls["Start Recording"].EventHandler = function()
-  Enqueue("zCommand Call Record Enable: on", 1)
+  Enqueue("zCommand Call Record Enable: on", { position = 1 })
 end
 
 Controls["Stop Recording"].EventHandler = function()
-  Enqueue("zCommand Call Record Enable: off", 1)
+  Enqueue("zCommand Call Record Enable: off", { position = 1 })
 end
 
 Controls["Mute All"].EventHandler = function()
-  Enqueue("zCommand Call MuteAll mute: on", 1)
+  Enqueue("zCommand Call MuteAll mute: on", { position = 1 })
 end
 
 Controls["Unmute All"].EventHandler = function()
-  Enqueue("zCommand Call MuteAll mute: off", 1)
+  Enqueue("zCommand Call MuteAll mute: off", { position = 1 })
 end
 
 Controls["Camera Mirror"].EventHandler = function(c)
-  Enqueue(string.format("zConfiguration Video Camera Mirror: %s", (c.Boolean and "on" or "off")), 1)
+  Enqueue(string.format("zConfiguration Video Camera Mirror: %s", (c.Boolean and "on" or "off")), { position = 1 })
 end
 
 Controls["Join Meeting from List"].EventHandler = function()
@@ -1769,12 +1808,12 @@ Controls["Join Meeting from List"].EventHandler = function()
   GStore.joinMeeting.command = string.format("zCommand Dial Start meetingNumber: %s", choice.number)
   if Controls["In Call"].Boolean then
     ResetParticipantsList()
-    Enqueue("zCommand Call Leave", 1)
-    Enqueue("zCommand Call Sharing HDMI Stop", 1)
+    Enqueue("zCommand Call Leave", { position = 1 })
+    Enqueue("zCommand Call Sharing HDMI Stop", { position = 1 })
     GStore.joinMeeting.joinOnNextDisconnect = true
-    -- Timer.CallAfter(function() Enqueue(command, 1) end, 1)
+    -- Timer.CallAfter(function() Enqueue(command, { position = 1 }) end, 1)
   else
-    Enqueue(GStore.joinMeeting.command, 1)
+    Enqueue(GStore.joinMeeting.command, { position = 1 })
   end
   
 end
@@ -1783,7 +1822,7 @@ Controls["Expel Participant"].EventHandler = function()
 
   if not myId or not selectedParticipant or (selectedParticipant.id == myId) then return Debug("Cannot Expel Myself...", 'basic') end
   
-  Enqueue(string.format("zCommand Call Expel Id: %s", selectedParticipant.id), 1)
+  Enqueue(string.format("zCommand Call Expel Id: %s", selectedParticipant.id), { position = 1 })
   RemoveParticipant(selectedParticipant.id)
   
   selectedParticipant = nil
@@ -1858,7 +1897,7 @@ Controls["Invite Contact"].EventHandler = function()
     end
   end
   
-  Enqueue(str, 1)
+  Enqueue(str, { position = 1 })
   
   -- reset selections
   for i, choice in ipairs(choices.phonebook) do
@@ -1885,7 +1924,7 @@ for i = 1, 4  do
     
     local screen = screen_ids[c]
 
-    Enqueue(string.format("zCommand Call Pin Id: %s Enable: On Screen: %s", selectedParticipant.id, screen), 1)
+    Enqueue(string.format("zCommand Call Pin Id: %s Enable: On Screen: %s", selectedParticipant.id, screen), { position = 1 })
   end
   
 end
@@ -1894,35 +1933,35 @@ Controls["Unpin Participant"].EventHandler = function()
   
   if not selectedParticipant then return Debug("Cannot Unpin Participant - None Selected", 'basic') end
   
-  Enqueue(string.format("zCommand Call Pin Id: %s Enable: Off", selectedParticipant.id), 1)
+  Enqueue(string.format("zCommand Call Pin Id: %s Enable: Off", selectedParticipant.id), { position = 1 })
 end
 
 Controls["Spotlight Participant"].EventHandler = function()
   
   if not selectedParticipant then return Debug("Cannot Spotlight Participant - None Selected", 'basic') end
   
-  Enqueue(string.format("zCommand Call Spotlight Id: %s Enable: On", selectedParticipant.id), 1)
+  Enqueue(string.format("zCommand Call Spotlight Id: %s Enable: On", selectedParticipant.id), { position = 1 })
 end
 
 Controls["Remove Spotlight"].EventHandler = function()
   
   if not selectedParticipant then return Debug("Cannot Spotlight Participant - None Selected", 'basic') end
   
-  Enqueue(string.format("zCommand Call Spotlight Id: %s Enable: Off", selectedParticipant.id), 1)
+  Enqueue(string.format("zCommand Call Spotlight Id: %s Enable: Off", selectedParticipant.id), { position = 1 })
 end
 
 Controls["Allow Participant Record"].EventHandler = function()
   
   if not selectedParticipant then return Debug("Cannot Allow Participant Record - None Selected", 'basic') end
   
-  Enqueue(string.format("zCommand Call Allowrecord Id: %s Enable: On", selectedParticipant.id), 1)
+  Enqueue(string.format("zCommand Call Allowrecord Id: %s Enable: On", selectedParticipant.id), { position = 1 })
 end
 
 Controls["Disable Participant Record"].EventHandler = function()
   
   if not selectedParticipant then return Debug("Cannot Disable Participant Record - None Selected", 'basic') end
   
-  Enqueue(string.format("zCommand Call Allowrecord Id: %s Enable: Off", selectedParticipant.id), 1)
+  Enqueue(string.format("zCommand Call Allowrecord Id: %s Enable: Off", selectedParticipant.id), { position = 1 })
 end
 
 function SetView()
@@ -1933,7 +1972,7 @@ function SetView()
   
   local view = view.Text
 
-  Enqueue(string.format("zConfiguration Call Layout Style: %s", view), 1)
+  Enqueue(string.format("zConfiguration Call Layout Style: %s", view), { position = 1 })
 end
 
 Controls["Set View"].EventHandler = SetView
@@ -1950,7 +1989,7 @@ Controls["Mute Participant Mic"].EventHandler = function(c)
   
   local state = (c.Boolean and "on" or "off")
 
-  Enqueue(string.format("zcommand call muteparticipant mute: %s id: %s", state, selectedParticipant.id), 1)
+  Enqueue(string.format("zcommand call muteparticipant mute: %s id: %s", state, selectedParticipant.id), { position = 1 })
 
   updateParticipantBypass = true
   ParticipantBypassTimer:Start(2)
@@ -1962,7 +2001,7 @@ Controls["Mute Participant Video"].EventHandler = function(c)
   
   local state = (c.Boolean and "on" or "off")
 
-  Enqueue(string.format("zcommand call muteparticipantvideo mute: %s id: %s", state, selectedParticipant.id), 1)
+  Enqueue(string.format("zcommand call muteparticipantvideo mute: %s id: %s", state, selectedParticipant.id), { position = 1 })
 
   updateParticipantBypass = true
   ParticipantBypassTimer:Start(2)
@@ -1980,32 +2019,32 @@ end
 
 Controls["Optimize Video"].EventHandler = function()
   if not Controls["Is Video Optimizable"].Boolean then return end
-  Enqueue("zConfiguration Call Sharing optimize_video_sharing", 1)
+  Enqueue("zConfiguration Call Sharing optimize_video_sharing", { position = 1 })
 end
 
 Controls["Enable Mute on Entry"].EventHandler = function()
-  Enqueue("zConfiguration Call MuteUserOnEntry Enable: on", 1)
+  Enqueue("zConfiguration Call MuteUserOnEntry Enable: on", { position = 1 })
 end
 
 Controls["Disable Mute on Entry"].EventHandler = function()
-  Enqueue("zConfiguration Call MuteUserOnEntry Enable: off", 1)
+  Enqueue("zConfiguration Call MuteUserOnEntry Enable: off", { position = 1 })
 end
 
 Controls["Lock Call"].EventHandler = function()
-  Enqueue("zConfiguration Call Lock Enable: on", 1)
+  Enqueue("zConfiguration Call Lock Enable: on", { position = 1 })
 end
 
 Controls["Unlock Call"].EventHandler = function()
-  Enqueue("zConfiguration Call Lock Enable: off", 1)
+  Enqueue("zConfiguration Call Lock Enable: off", { position = 1 })
 end
 
 Controls["Closed Caption Visible"].EventHandler = function(c)
-  Enqueue(string.format("zConfiguration Call ClosedCaption Visible: %s", (c.Boolean and "on" or "off")), 1)
+  Enqueue(string.format("zConfiguration Call ClosedCaption Visible: %s", (c.Boolean and "on" or "off")), { position = 1 })
 end
 
 Controls["Share Camera"].EventHandler = function()
   if not selected_camera_line then return Debug("Zoom.Error: No Camera ID - Please Select a Video Line", 'basic') end
-  Enqueue(string.format("zCommand Call ShareCamera id: %s Status: on", selected_camera_line), 1)
+  Enqueue(string.format("zCommand Call ShareCamera id: %s Status: on", selected_camera_line), { position = 1 })
 end
 
 Controls["Refresh Phonebook"].EventHandler = ResetPhonebookList

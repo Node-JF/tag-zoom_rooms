@@ -314,7 +314,7 @@ Master_Object = {{
 
     ["Groupings"] = {{
         ["Name"] = "Phonebook",
-        ["Depth"] = 16,
+        ["Depth"] = 17,
         ["Controls"] = {{
             Name = "Number of Zoom Rooms",
             PrettyName = "Phonebook~Indicators~Number of Zoom Rooms",
@@ -356,12 +356,22 @@ Master_Object = {{
             Size = Sizes.Text,
             GridPos = 4
         }, {
+            Name = "Contacts Processed",
+            PrettyName = "Phonebook~Indicators~Contacts Processed",
+            Label = "Contacts Processed",
+            ControlType = "Indicator",
+            IndicatorType = "Text",
+            PinStyle = "Output",
+            UserPin = true,
+            Size = Sizes.Text,
+            GridPos = 5
+        }, {
             Name = "Phonebook",
             ControlType = "Text",
             Style = "ListBox",
             Size = Sizes.ListBox,
             Width = "Full",
-            GridPos = 5
+            GridPos = 6
         }, {
             Name = "Refresh Phonebook",
             PrettyName = "Phonebook~Refresh Phonebook",
@@ -372,7 +382,7 @@ Master_Object = {{
             PinStyle = "Both",
             UserPin = true,
             Size = Sizes.Button,
-            GridPos = 5
+            GridPos = 6
         }, {
             Name = "Contacts Filtering",
             PrettyName = "Phonebook~Contacts Filtering",
@@ -382,7 +392,7 @@ Master_Object = {{
             PinStyle = "Output",
             UserPin = true,
             Size = Sizes.LED,
-            GridPos = 12
+            GridPos = 13
         }, {
             Name = "Filter for Zoom Rooms Only",
             PrettyName = "Phonebook~Filter for Zoom Rooms Only",
@@ -392,7 +402,7 @@ Master_Object = {{
             PinStyle = "Both",
             UserPin = true,
             Size = Sizes.Button,
-            GridPos = 13
+            GridPos = 14
         }, {
             Name = "Contacts Search",
             PrettyName = "Phonebook~Contacts Search",
@@ -401,7 +411,7 @@ Master_Object = {{
             PinStyle = "Input",
             UserPin = true,
             Size = Sizes.Text,
-            GridPos = 14
+            GridPos = 15
         }, {
             Name = "Clear Phonebook Selections",
             PrettyName = "Phonebook~Clear Phonebook Selections",
@@ -411,7 +421,7 @@ Master_Object = {{
             PinStyle = "Both",
             UserPin = true,
             Size = Sizes.Button,
-            GridPos = 15
+            GridPos = 16
         }, {
             Name = "Invite Contact",
             PrettyName = "Phonebook~Invite Contact",
@@ -421,7 +431,7 @@ Master_Object = {{
             PinStyle = "Both",
             UserPin = true,
             Size = Sizes.Button,
-            GridPos = 16
+            GridPos = 17
         }}
     }, {
         ["Name"] = "Bookings",
