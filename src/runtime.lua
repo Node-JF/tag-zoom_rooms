@@ -45,7 +45,8 @@ Text_Indicators = {
   "Number of Zoom Rooms",
   "Number of Normal Contacts",
   "Number of Legacy Rooms",
-  "Total Contacts"
+  "Total Contacts",
+  "Contacts Processed"
 }
 
 LED_Indicators = {
