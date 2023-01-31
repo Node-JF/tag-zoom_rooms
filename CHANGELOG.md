@@ -2,7 +2,18 @@
 
 ## Versions
 
+- [1.15](#115)
 - [1.14](#114)
+
+## 1.15
+
+### Resolved Issues
+
+- Added `AddedContactsTimer` that starts whenever an `Added Contact` phonebook event is received. If only one contact is added before the timer expires, the plugin will ignore that contact, but will increment `contactsAddedSinceLastFetch`, which tracks the number of single contacts added, in total, since the last phonebook fetch. A manual phonebook fetch is required to update the phonebook. If more than one contact is added, we will assume the Zoom Rooms Conferencing software has been restarted and the contacts are being imported to the Zoom Rooms Conferencing software and we should wait for that to finish; the `AddedContactsTimer` will not expire until 10 seconds after the last `Added Contact` event, and will then trigger a fresh import of the phonebook.
+
+- On SSH connection, set `ignorePhonebookResponses` to `true`. `ignorePhonebookResponses` acts as a guard clause for `PhonebookListResult` events and will not call `UpdatePhonebook()` if set to `true`. `ResetPhonebookList()` sets `ignorePhonebookResponses` to `false`. This should prevent stale `PhonebookListResult` events from interrupting the contacts import flow when the plugin reconnects to the Zoom Rooms Conferencing software and the communications are not in a predictable state.
+
+- Call `Initialize()` on SSH `Timeout`, `Closed`, `Reconnect`, `Error`, `LoginFailed` events.
 
 ## 1.14
 

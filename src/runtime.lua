@@ -4,7 +4,7 @@ zoomRoom = Ssh.New()
 zoomRoom.ReconnectTimeout = 1
 zoomRoom.ReadTimeout = 10
 
-QueueTimer, PollTimer = Timer.New(), Timer.New()
+QueueTimer, PollTimer, AddedContactsTimer = Timer.New(), Timer.New(), Timer.New()
 MicMuteTimer, CamMuteTimer = Timer.New(), Timer.New()
 ParticipantBypassTimer = Timer.New()
 PresenceUpdateTimers = {Timer.New(), Timer.New()}
@@ -18,6 +18,9 @@ updateParticipantBypass = false
 phonebookReceived = false
 hangingUp = false
 choices = {}
+addedContactsChunk = 0
+contactsAddedSinceLastFetch = 0
+ignorePhonebookResponses = true
 
 Text_Indicators = {
   "Meeting ID",
@@ -46,7 +49,7 @@ Text_Indicators = {
   "Number of Normal Contacts",
   "Number of Legacy Rooms",
   "Total Contacts",
-  "Contacts Processed"
+  "Contacts Processed",
 }
 
 LED_Indicators = {
@@ -485,6 +488,8 @@ Zoom_Responses = {
     
     phonebookReceived = true
     
+    if (ignorePhonebookResponses) then return Debug('Phonebook.Warning: Received PhonebookListResult, but Ignoring.', 'basic') end
+
     UpdatePhonebook(this)
     
   end,
@@ -498,7 +503,8 @@ Zoom_Responses = {
     if Phonebook['Added Contact'] then
     
       Debug(string.format("Adding Contact '%s'", Phonebook['Added Contact'].screenName), 'basic')
-    
+      addedContactsChunk = addedContactsChunk + 1
+      AddedContactsTimer:Start(10)
     elseif Phonebook['Updated Contact'] then
     
       if (not presence_updates) then presence_updates = {} end
@@ -675,6 +681,7 @@ function ResetTimers()
   PollTimer:Stop()
   QueueTimer:Stop()
   PhonebookTimer:Stop()
+  AddedContactsTimer:Stop()
   ReceivedPhonebookTimer:Stop()
 end
 
@@ -688,6 +695,8 @@ function ResetVariables()
   audioOutputConfigurationReceived = false
   callWasAutoAnswered = false
   canHangup = true
+  addedContactsChunk = 0
+  contactsAddedSinceLastFetch = 0
 end
 
 function Connect()
@@ -853,7 +862,7 @@ function Poll()
     
   end
 
-  print(string.format('Command Queue has [%d] Items', #commandQueue))
+  Debug(string.format('Command Queue has [%d] Items', #commandQueue), 'basic')
   
   Enqueue("zStatus Call Status")
   
@@ -1309,6 +1318,8 @@ function ResetPhonebookList()
   presence_updates = {}
   PresenceUpdateTimers[1]:Stop()
   PresenceUpdateTimers[2]:Stop()
+  contactsAddedSinceLastFetch = 0
+  ignorePhonebookResponses = false
   
   Controls['Contacts Processed'].String = ''
   Controls["Phonebook"].Choices = {"Fetching Phonebook..."}
@@ -1563,6 +1574,7 @@ end
 zoomRoom.Reconnect = function()
   Debug("SSH.Warning: Connection Reconnecting...", 'basic')
   SetLED("Connected", false)
+  Initialize()
 end
 
 zoomRoom.Data = function()
@@ -1619,28 +1631,28 @@ zoomRoom.Closed = function()
   Debug("SSH.Error: Connection Closed", 'basic')
   SetStatus(2, "Connection Closed")
   SetLED("Connected", false)
-  ResetControls()
+  Initialize()
 end
 
 zoomRoom.Error = function(s, err)
   Debug(string.format("SSH.Error: Error Occurred: %s", err), 'basic')
   SetStatus(2, string.format("SSH Error Occurred: %s", err))
   SetLED("Connected", false)
-  ResetControls()
+  Initialize()
 end
 
 zoomRoom.Timeout = function()
   Debug("SSH.Error: Connection Timed Out", 'basic')
   SetStatus(2, "Connection Timed Out")
   SetLED("Connected", false)
-  ResetControls()
+  Initialize()
 end
 
 zoomRoom.LoginFailed = function()
   Debug("SSH.Error: Login Failed", 'basic')
   SetStatus(1, "Login Failed")
   SetLED("Connected", false)
-  ResetControls()
+  Initialize()
 end
 
 -------------------------
@@ -1650,6 +1662,28 @@ end
 PollTimer.EventHandler = Poll
 
 QueueTimer.EventHandler = Dequeue
+
+AddedContactsTimer.EventHandler = function(t)
+  t:Stop()
+  Debug( string.format('Phonebook.Info: [%s] Added Contact(s)', addedContactsChunk), 'basic' )
+  -- if multiple added contacts, just rebuild the phonebook
+  if (addedContactsChunk > 1) then
+    Debug('Phonebook.Info: Rebuilding Phonebook...', 'basic' )
+    ResetPhonebookList()
+  else
+    contactsAddedSinceLastFetch = contactsAddedSinceLastFetch + addedContactsChunk
+    Debug('Phonebook.Info: Manual Phonebook Rebuild Required', 'basic' )-- else, splice a single contact into existing phonebook
+
+    -- i could do this, but the phonebook.positions hashmap would then be inaccurate.
+    -- if required in the future, I would need to rebuild the hash map without exceeding the executions limit.
+    
+    -- table.insert(phonebook.contacts, contact.index ) -- update contact at index
+    -- phonebook.positions[contact.jid] = contact.index -- update contact position map
+    -- ResetPhonebookList()
+  end
+
+  addedContactsChunk = 0
+end
 
 Controls["IP Address"].EventHandler = function() Initialize(); Connect() end
 Controls["Connect"].EventHandler = Connect
