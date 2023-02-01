@@ -21,6 +21,7 @@ choices = {}
 addedContactsChunk = 0
 contactsAddedSinceLastFetch = 0
 ignorePhonebookResponses = true
+isReceivingAddedContacts = false
 
 Text_Indicators = {
   "Meeting ID",
@@ -453,13 +454,19 @@ Zoom_Responses = {
   
   PhonebookBasicInfoChange = function(PhonebookBasicInfoChange)
 
-    ReceivedPhonebookTimer:Stop()
-    Debug("ReceivedPhonebookTimer: Phonebook Info Received; Stopped", 'basic')
-    
     Controls['Number of Zoom Rooms'].String = PhonebookBasicInfoChange.numberOfZoomRoom
     Controls['Number of Normal Contacts'].String = PhonebookBasicInfoChange.numberOfNormalContact
     Controls['Number of Legacy Rooms'].String = PhonebookBasicInfoChange.numberOfLegacyRoom
     Controls['Total Contacts'].String = PhonebookBasicInfoChange.total
+    
+    if (isReceivingAddedContacts) then --this will be true if this event is at the end of an 'Added Contacts' chain, and should initiate the phonebook fetch
+      isReceivingAddedContacts = false
+      Debug("Phonebook.Info: Plugin is Currently Receiving 'Added Contact' Events - Ignoring 'PhonebookBasicInfoChange' Event", 'basic')
+      return ResetPhonebookList() 
+    end
+
+    ReceivedPhonebookTimer:Stop()
+    Debug("ReceivedPhonebookTimer: Phonebook Info Received; Stopped", 'basic')
     
     -- when the SSH socket reconnects, it takes a few moments before the non-legacy contacts are available. Wait until they are available before importing contacts.
     local function validateContacts()
@@ -504,6 +511,8 @@ Zoom_Responses = {
     
       Debug(string.format("Adding Contact '%s'", Phonebook['Added Contact'].screenName), 'basic')
       addedContactsChunk = addedContactsChunk + 1
+      ReceivedPhonebookTimer:Stop() -- stop this logic flow
+      isReceivingAddedContacts = true -- set flag during this flow of receiving added contacts
       AddedContactsTimer:Start(10)
     elseif Phonebook['Updated Contact'] then
     
@@ -1567,7 +1576,7 @@ zoomRoom.Connected = function()
   end
 
   Debug("ReceivedPhonebookTimer: Starting", 'basic')
-  ReceivedPhonebookTimer:Start(3)
+  ReceivedPhonebookTimer:Start(10)
   
 end
 
@@ -1666,6 +1675,9 @@ QueueTimer.EventHandler = Dequeue
 AddedContactsTimer.EventHandler = function(t)
   t:Stop()
   Debug( string.format('Phonebook.Info: [%s] Added Contact(s)', addedContactsChunk), 'basic' )
+
+  isReceivingAddedContacts = false
+
   -- if multiple added contacts, just rebuild the phonebook
   if (addedContactsChunk > 1) then
     Debug('Phonebook.Info: Rebuilding Phonebook...', 'basic' )

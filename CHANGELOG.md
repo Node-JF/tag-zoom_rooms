@@ -15,6 +15,8 @@
 
 - Call `Initialize()` on SSH `Timeout`, `Closed`, `Reconnect`, `Error`, `LoginFailed` events.
 
+- Issue [#1](https://github.com/Node-JF/tag-zoom_rooms/issues/1)
+
 ## 1.14
 
 ### Resolved Issues
