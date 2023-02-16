@@ -1044,7 +1044,7 @@ function BuildPhonebookChoices(tbl, is_clearing)
   local delay = 0.001
   
   -- maximum contacts to display on the list box at once, to avoid performance issues. using the search feature will narrow the results table
-  local max_contacts = 100
+  local max_contacts = Properties['Max Contacts'].Value
   
   local checked_contacts = 0
   local start, finish = 1, chunk

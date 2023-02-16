@@ -28,5 +28,12 @@ props = {
       "Verbose"
     },
     Value = "Basic",
+  },
+  {
+    Name = 'Max Contacts',
+    Type = "integer",
+    Min = 5,
+    Max = 250,
+    Value = 100,
   }
 }

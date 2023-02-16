@@ -51,6 +51,12 @@ The color of the selected items when in 'HTML5 Compatible' mode.
 
 > Basic | Verbose
 
+#### Max Contacts
+
+The maximum number of contacts that can be compiled into the `Phonebook` list box.
+
+> If the `Phonebook` search results are not narrowed below this number, the list box will instead render a warning message.
+
 ## Controls
 
 ### Config Page

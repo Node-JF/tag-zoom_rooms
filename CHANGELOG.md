@@ -2,8 +2,17 @@
 
 ## Versions
 
+- [1.16](#116)
 - [1.15](#115)
 - [1.14](#114)
+
+## 1.16
+
+### Resolved Issues
+
+- Added `Max Contacts` property to allow user defined threshold. [See CHANGELOG](./README.md/#max-contacts)
+
+> :warning: ListBox performance will decrease when where are too many contacts rendered at once.
 
 ## 1.15
 
