@@ -1799,7 +1799,7 @@ Controls["Stop Local Sharing"].EventHandler = function()
   local sharingStatus = Controls["Sharing Status"].String
   if(sharingStatus == 'Sending' or sharingStatus == 'Send_Receiving') then
     Enqueue("zCommand Call Sharing Disconnect", { position = 1 })
-  elseif(sharingStatus ~= 'None') then
+  elseif(sharingStatus == 'Receiving') then
     Enqueue("zCommand Call Sharing HDMI Start", { position = 1 })
     Timer.CallAfter(function()
       Enqueue("zCommand Call Sharing HDMI Stop", { position = 1 })
