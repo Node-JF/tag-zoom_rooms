@@ -635,7 +635,7 @@ Stop sharing the HDMI source.
 
 #### Stop Local Sharing
 
-Stops this Zoom Room from sharing.
+If this Zoom Room is sharing, stops this Zoom Room from sharing. If a participant is sharing, start sharing HDMI, then stop sharing HDMI after a delay to override any participant sharing.
 
 #### Camera Name
 

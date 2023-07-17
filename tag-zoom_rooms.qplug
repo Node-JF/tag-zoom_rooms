@@ -1,8 +1,8 @@
 -- Information block for the plugin
 PluginInfo = {
   Name = "TAG~Zoom~Zoom Rooms CLI",
-  Version = "1.16",
-  BuildVersion = "1.16.0.1",
+  Version = "1.17",
+  BuildVersion = "1.17.0.0",
   Id = "c446ef61-0b8d-41bb-b354-d24e35165a2d",
   Description = "Zoom Rooms JSON CLI with support for massive phonebooks, contacts searching & filtering, contact presence updates, HTML5 compatible listboxes, host ending call flag options, custom plugin settings",
   Author = "Jason Foord",
@@ -3576,7 +3576,15 @@ if Controls then
   end
   
   Controls["Stop Local Sharing"].EventHandler = function()
-    Enqueue("zCommand Call Sharing Disconnect", { position = 1 })
+    local sharingStatus = Controls["Sharing Status"].String
+    if(sharingStatus == 'Sending' or sharingStatus == 'Send_Receiving') then
+      Enqueue("zCommand Call Sharing Disconnect", { position = 1 })
+    elseif(sharingStatus ~= 'None') then
+      Enqueue("zCommand Call Sharing HDMI Start", { position = 1 })
+      Timer.CallAfter(function()
+        Enqueue("zCommand Call Sharing HDMI Stop", { position = 1 })
+      end, 1)
+    end
   end
   
   Controls["Participant Cameras"].EventHandler = function(c)

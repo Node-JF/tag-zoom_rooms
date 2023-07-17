@@ -2,9 +2,30 @@
 
 ## Versions
 
+- [1.17](#117)
 - [1.16](#116)
 - [1.15](#115)
 - [1.14](#114)
+
+## 1.17
+
+### Resolved Issues
+
+- Changed `EventHandler` of `Stop Local Sharing` control so that if ZR is sharing it will stop local sharing, else if sharing status is not "None" then the ZR will force stop sharing for all participants by sharing ZR HDMI, then stopping ZR HDMI:
+
+``` lua
+Controls["Stop Local Sharing"].EventHandler = function()
+  local sharingStatus = Controls["Sharing Status"].String
+  if(sharingStatus == 'Sending' or sharingStatus == 'Send_Receiving') then
+    Enqueue("zCommand Call Sharing Disconnect", { position = 1 })
+  elseif(sharingStatus ~= 'None') then
+    Enqueue("zCommand Call Sharing HDMI Start", { position = 1 })
+    Timer.CallAfter(function()
+      Enqueue("zCommand Call Sharing HDMI Stop", { position = 1 })
+    end, 1)
+  end
+end
+```
 
 ## 1.16
 
