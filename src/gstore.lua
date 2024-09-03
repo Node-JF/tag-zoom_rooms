@@ -437,6 +437,13 @@ Master_Object = {{
         ["Name"] = "Bookings",
         ["Depth"] = 6,
         ["Controls"] = {{
+            Name = "Bookings JSON",
+            PrettyName = "Bookings~Bookings JSON",
+            ControlType = "Text",
+            PinStyle = "Output",
+            UserPin = true,
+            Hidden = true,
+        },{
             Name = "Booking List",
             PrettyName = "Bookings~Current Booking",
             ControlType = "Text",

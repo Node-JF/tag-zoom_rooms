@@ -65,47 +65,58 @@ for i, grouping in ipairs(Master_Object[page_index].Groupings) do
         local pos_x = nil
         local pos_y = nil
 
-        if (ctl.Width and (ctl.Width == "Full")) then
-            pos_x = 15
-            pos_y = (Slots[ctl.GridPos] + control_depth + control_gap)
+        if ctl.Hidden then
+            -- don't render layout
+            layout[ctl.Name] = {
+                PrettyName = ctl.PrettyName,
+                Style = "None"
+            }
+
         else
-            if (ctl.Position) then
-              pos_x = ctl.Position
+
+            if (ctl.Width and (ctl.Width == "Full")) then
+                pos_x = 15
+                pos_y = (Slots[ctl.GridPos] + control_depth + control_gap)
             else
-              pos_x = (width-15) - ctl.Size[1]
+                if (ctl.Position) then
+                pos_x = ctl.Position
+                else
+                pos_x = (width-15) - ctl.Size[1]
+                end
+                pos_y = Slots[ctl.GridPos]
             end
-            pos_y = Slots[ctl.GridPos]
-        end
 
-        layout[ctl.Name] = {
-            PrettyName = ctl.PrettyName,
-            Legend = ctl.Legend,
-            Style = ctl.Style,
-            Position = {
-                pos_x,
-                pos_y
-            },
-            Size = ctl.Size,
-            Font = "Droid Sans",
-            FontSize = 8
-        }
-
-        if ctl.Label then
-            table.insert(graphics, {
-                Type = "Label",
-                Text = ctl.Label,
-                HTextAlign = "Left",
-                Color = colors.black,
-                Font = "Droid Sans",
+            layout[ctl.Name] = {
+                PrettyName = ctl.PrettyName,
+                Legend = ctl.Legend,
+                Style = ctl.Style,
                 Position = {
-                    15,
-                    (Slots[ctl.GridPos] ~= nil) and Slots[ctl.GridPos] or Slots[#Slots]
+                    pos_x,
+                    pos_y
                 },
-                Size = {
-                    (ctl.Width == "Full") and (width-30) or (width-30)-ctl.Size[1],
-                    control_depth
-                }
-            })
+                Size = ctl.Size,
+                Font = "Droid Sans",
+                FontSize = 8
+            }
+
+            if ctl.Label then
+                table.insert(graphics, {
+                    Type = "Label",
+                    Text = ctl.Label,
+                    HTextAlign = "Left",
+                    Color = colors.black,
+                    Font = "Droid Sans",
+                    Position = {
+                        15,
+                        (Slots[ctl.GridPos] ~= nil) and Slots[ctl.GridPos] or Slots[#Slots]
+                    },
+                    Size = {
+                        (ctl.Width == "Full") and (width-30) or (width-30)-ctl.Size[1],
+                        control_depth
+                    }
+                })
+            end
+
         end
 
     end

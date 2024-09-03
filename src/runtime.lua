@@ -152,6 +152,10 @@ Zoom_Responses = {
     Debug(string.format("%d Bookings Found", #BookingsListResult), 'basic')
     
     booking_list = {}
+
+    local result, err = pcall(function()
+      Controls['Bookings JSON'].String = rapidjson.encode(BookingsListResult)
+    end)
     
     for i, tbl in pairs(BookingsListResult) do
       if not tbl.isInstantMeeting then
@@ -1184,8 +1188,7 @@ function BuildBookingChoices(tbl)
       table.insert(choices.bookings, {
         Text = string.format("%s", booking.name),
         Color = "Black",
-        number = number,
-        bookingData = booking
+        number = number
       })
   end
 

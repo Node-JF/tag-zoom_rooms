@@ -2,7 +2,7 @@
 PluginInfo = {
   Name = "TAG~Zoom~Zoom Rooms CLI",
   Version = "1.18",
-  BuildVersion = "1.18.0.0",
+  BuildVersion = "1.18.0.5",
   Id = "c446ef61-0b8d-41bb-b354-d24e35165a2d",
   Description = "Zoom Rooms JSON CLI with support for massive phonebooks, contacts searching & filtering, contact presence updates, HTML5 compatible listboxes, host ending call flag options, custom plugin settings",
   Author = "Jason Foord",
@@ -448,6 +448,13 @@ Master_Object = {{
         ["Name"] = "Bookings",
         ["Depth"] = 6,
         ["Controls"] = {{
+            Name = "Bookings JSON",
+            PrettyName = "Bookings~Bookings JSON",
+            ControlType = "Text",
+            PinStyle = "Output",
+            UserPin = true,
+            Hidden = true,
+        },{
             Name = "Booking List",
             PrettyName = "Bookings~Current Booking",
             ControlType = "Text",
@@ -1727,47 +1734,58 @@ function GetControlLayout(props)
           local pos_x = nil
           local pos_y = nil
   
-          if (ctl.Width and (ctl.Width == "Full")) then
-              pos_x = 15
-              pos_y = (Slots[ctl.GridPos] + control_depth + control_gap)
+          if ctl.Hidden then
+              -- don't render layout
+              layout[ctl.Name] = {
+                  PrettyName = ctl.PrettyName,
+                  Style = "None"
+              }
+  
           else
-              if (ctl.Position) then
-                pos_x = ctl.Position
+  
+              if (ctl.Width and (ctl.Width == "Full")) then
+                  pos_x = 15
+                  pos_y = (Slots[ctl.GridPos] + control_depth + control_gap)
               else
-                pos_x = (width-15) - ctl.Size[1]
+                  if (ctl.Position) then
+                  pos_x = ctl.Position
+                  else
+                  pos_x = (width-15) - ctl.Size[1]
+                  end
+                  pos_y = Slots[ctl.GridPos]
               end
-              pos_y = Slots[ctl.GridPos]
-          end
   
-          layout[ctl.Name] = {
-              PrettyName = ctl.PrettyName,
-              Legend = ctl.Legend,
-              Style = ctl.Style,
-              Position = {
-                  pos_x,
-                  pos_y
-              },
-              Size = ctl.Size,
-              Font = "Droid Sans",
-              FontSize = 8
-          }
-  
-          if ctl.Label then
-              table.insert(graphics, {
-                  Type = "Label",
-                  Text = ctl.Label,
-                  HTextAlign = "Left",
-                  Color = colors.black,
-                  Font = "Droid Sans",
+              layout[ctl.Name] = {
+                  PrettyName = ctl.PrettyName,
+                  Legend = ctl.Legend,
+                  Style = ctl.Style,
                   Position = {
-                      15,
-                      (Slots[ctl.GridPos] ~= nil) and Slots[ctl.GridPos] or Slots[#Slots]
+                      pos_x,
+                      pos_y
                   },
-                  Size = {
-                      (ctl.Width == "Full") and (width-30) or (width-30)-ctl.Size[1],
-                      control_depth
-                  }
-              })
+                  Size = ctl.Size,
+                  Font = "Droid Sans",
+                  FontSize = 8
+              }
+  
+              if ctl.Label then
+                  table.insert(graphics, {
+                      Type = "Label",
+                      Text = ctl.Label,
+                      HTextAlign = "Left",
+                      Color = colors.black,
+                      Font = "Droid Sans",
+                      Position = {
+                          15,
+                          (Slots[ctl.GridPos] ~= nil) and Slots[ctl.GridPos] or Slots[#Slots]
+                      },
+                      Size = {
+                          (ctl.Width == "Full") and (width-30) or (width-30)-ctl.Size[1],
+                          control_depth
+                      }
+                  })
+              end
+  
           end
   
       end
@@ -1932,6 +1950,10 @@ if Controls then
       Debug(string.format("%d Bookings Found", #BookingsListResult), 'basic')
       
       booking_list = {}
+  
+      local result, err = pcall(function()
+        Controls['Bookings JSON'].String = rapidjson.encode(BookingsListResult)
+      end)
       
       for i, tbl in pairs(BookingsListResult) do
         if not tbl.isInstantMeeting then
@@ -2964,8 +2986,7 @@ if Controls then
         table.insert(choices.bookings, {
           Text = string.format("%s", booking.name),
           Color = "Black",
-          number = number,
-          bookingData = booking
+          number = number
         })
     end
   

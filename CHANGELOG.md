@@ -10,7 +10,7 @@
 
 ## 1.18
 
-- Adding `bookingData` property to the bookings list to expose the raw booking payload. It will appear in the `Bookings~Current Booking` control pin output, which can be parsed using a `json.decode` function.
+- Adding `Bookings JSON` control pin to expose the raw bookings payload. It will appear in the `Bookings~Bookings JSON` control pin output, which can be parsed using a `json.decode` function.
 
 ## 1.17
 
