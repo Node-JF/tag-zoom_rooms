@@ -1184,7 +1184,8 @@ function BuildBookingChoices(tbl)
       table.insert(choices.bookings, {
         Text = string.format("%s", booking.name),
         Color = "Black",
-        number = number
+        number = number,
+        bookingData = booking
       })
   end
 
