@@ -2,11 +2,17 @@
 
 ## Versions
 
+- [1.19](#119)
 - [1.18](#118)
 - [1.17](#117)
 - [1.16](#116)
 - [1.15](#115)
 - [1.14](#114)
+
+## 1.19
+
+- Added `callWasAutoAnswered = false` to `CallEnded` trigger
+- Removed `callWasAutoAnswered = false` to `CallDisconnected` trigger
 
 ## 1.18
 

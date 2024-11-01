@@ -278,26 +278,42 @@ Zoom_Responses = {
   end,
   
   CallDisconnect = function(CallDisconnect)
+
     if CallDisconnect.success == "on" then
-      callWasAutoAnswered = false
+
+      --callWasAutoAnswered = false
+
       SetLED("In Call", false)
+
       SetLED("In Call Presentation", false)
+
       Controls["Call Disconnect Trigger"]:Trigger()
+
       Debug("Call Disconnected - Firing 'Call Disconnected' Trigger", 'basic')
+
     end
+
   end,
-  
+
+ 
+
   CallEnded = function(CallEnded)
 
     if (Controls['Call Ended by Host Mode'].String == "Always Trigger") then
+
       Controls["Call Ended by Host Trigger"]:Trigger()
+
       Debug("Host Ended Call - Firing 'Call Ended by Host' Trigger", 'basic')
+
     elseif (Controls['Call Ended by Host Mode'].String == "Auto-Answered Calls Only") and callWasAutoAnswered then
+
+      callWasAutoAnswered = false
+
       Controls["Call Ended by Host Trigger"]:Trigger()
+
       Debug("Host Ended Call (Auto-Answered) - Firing 'Call Ended by Host' Trigger", 'basic')
+
     end
-    
-  end,
   
   CameraShare = function(CameraShare)
   
