@@ -295,8 +295,6 @@ Zoom_Responses = {
 
   end,
 
- 
-
   CallEnded = function(CallEnded)
 
     if (Controls['Call Ended by Host Mode'].String == "Always Trigger") then
@@ -314,6 +312,8 @@ Zoom_Responses = {
       Debug("Host Ended Call (Auto-Answered) - Firing 'Call Ended by Host' Trigger", 'basic')
 
     end
+  
+  end,
   
   CameraShare = function(CameraShare)
   
