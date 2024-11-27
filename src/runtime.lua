@@ -374,7 +374,10 @@ Zoom_Responses = {
     Controls["Meeting Password"].String = meeting_password
 
     local meeting_type = InfoResult.meeting_type
-    local is_waiting_room = InfoResult.is_waiting_room
+    -- local is_waiting_room = InfoResult.is_waiting_room
+
+    -- fix for macs, and this never worked anyway so yolo
+    local is_waiting_room = false
 
     SetLED("In Call Presentation", ((not is_waiting_room) and (meeting_type == "SHARING_LAPTOP")))
     SetLED("In Call", ((not is_waiting_room) and (meeting_type == "SHARING_LAPTOP") or (meeting_type == "NORMAL")))

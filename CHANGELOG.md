@@ -2,12 +2,17 @@
 
 ## Versions
 
+- [1.20](#120)
 - [1.19](#119)
 - [1.18](#118)
 - [1.17](#117)
 - [1.16](#116)
 - [1.15](#115)
 - [1.14](#114)
+
+## 1.20
+
+- Force `is_waiting_room` to `false`, because the feature never worked anyway, and is broken on macs and returns true always.
 
 ## 1.19
 
